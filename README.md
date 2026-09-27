@@ -1,6 +1,6 @@
-# Wrap — Creator Project Hub for Mac
+# Wrap - Creator Project Hub for Mac
 
-> **Status:** planning. No code yet. "Wrap" is a working name.
+> **Status:** planning. No code yet.
 
 **Wrap** is a Mac app that follows a creative project from start to finish: plan the shots, open the edit workspace in one click, then deliver the final file with a link. It combines three ideas, Shotlist, Dockly and export-to-link delivery, into one project hub.
 
