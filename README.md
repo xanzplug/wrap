@@ -1,6 +1,6 @@
-# Wrap - Creator Project Hub for Mac
+# Wrap — Creator Project Hub for Mac
 
-> **Status:** planning. No code yet.
+> **Status:** planning. No code yet. "Wrap" is a working name.
 
 **Wrap** is a Mac app that follows a creative project from start to finish: plan the shots, open the edit workspace in one click, then deliver the final file with a link. It combines three ideas, Shotlist, Dockly and export-to-link delivery, into one project hub.
 
@@ -14,7 +14,7 @@
 | Edit | Dockly, pointed at creators | Press Launch Workspace: your editor opens with this project's file, plus the footage folder, music and anything else, each window where you like it |
 | Deliver | Export-to-link | Export to the Wrap disk (or drop a file), and a client link appears that deletes itself after download |
 
-**Why it's different:** delivery tools like DropBox only cover the last step. Wrap keeps the whole shoot in one place, and delivery knows which project and client each file belongs to.
+**Why it's different:** delivery tools like [Relayyed](https://relayyed.com/) only cover the last step. Wrap keeps the whole shoot in one place, and delivery knows which project and client each file belongs to.
 
 **Not in version 1:** an iPhone app, sync between devices, team accounts, payments and Windows.
 
