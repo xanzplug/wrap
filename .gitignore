@@ -17,3 +17,6 @@ node_modules/
 .wrangler/
 .dev.vars
 .env
+
+# Files saved by Claude chats
+Claude outputs/
