@@ -99,6 +99,7 @@ struct ContentView: View {
 
 /// The strip across the top: logo, status, and quick buttons.
 struct TopBar: View {
+    @Environment(AuthService.self) private var auth
     let status: String
     let onProjects: () -> Void
     let onNewProject: () -> Void
@@ -123,15 +124,45 @@ struct TopBar: View {
             Button("Projects", action: onProjects).buttonStyle(.wrapSecondary)
             Button("New project", action: onNewProject).buttonStyle(.wrapSecondary)
             Button("Quit") { NSApp.terminate(nil) }.buttonStyle(.wrapSecondary)
+            accountMenu
         }
         .padding(.horizontal, 20)
         .padding(.top, 34)   // room for the window's close/minimise buttons
         .padding(.bottom, 14)
+    }
+
+    /// A round initial; click for your email and Sign Out.
+    private var accountMenu: some View {
+        Menu {
+            if let account = auth.account {
+                Text(account.name.isEmpty ? account.email : "\(account.name) · \(account.email)")
+            }
+            Divider()
+            Button("Sign Out") {
+                Task { await auth.signOut() }
+            }
+        } label: {
+            Text(initial)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 30, height: 30)
+                .background(Circle().fill(Color.white.opacity(0.1)))
+                .overlay(Circle().strokeBorder(Color.wrapBorder))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+
+    private var initial: String {
+        let source = auth.account.map { $0.name.isEmpty ? $0.email : $0.name } ?? "?"
+        return source.first.map { String($0).uppercased() } ?? "?"
     }
 }
 
 #Preview {
     ContentView()
         .modelContainer(for: [Project.self, Shot.self, WorkspaceItem.self], inMemory: true)
+        .environment(AuthService())
         .preferredColorScheme(.dark)
 }

@@ -3,6 +3,9 @@ import SwiftData
 
 @main
 struct WrapApp: App {
+    /// Who's signed in. Shared by the window and the menu bar.
+    @State private var auth = AuthService()
+
     /// One shared library, used by both the main window and the menu bar.
     let container: ModelContainer = {
         do {
@@ -14,7 +17,8 @@ struct WrapApp: App {
 
     var body: some Scene {
         Window("Wrap", id: "main") {
-            ContentView()
+            RootView()
+                .environment(auth)
                 .preferredColorScheme(.dark)
         }
         .windowStyle(.hiddenTitleBar)
@@ -23,6 +27,7 @@ struct WrapApp: App {
 
         MenuBarExtra {
             MenuBarContent()
+                .environment(auth)
         } label: {
             Image("MenuBarIcon")
         }
@@ -33,6 +38,7 @@ struct WrapApp: App {
 /// What appears when you click the film icon in the menu bar.
 struct MenuBarContent: View {
     @Environment(\.openWindow) private var openWindow
+    @Environment(AuthService.self) private var auth
 
     @Query(filter: #Predicate<Project> { $0.isWrapped == false },
            sort: \Project.createdAt, order: .reverse)
@@ -44,7 +50,10 @@ struct MenuBarContent: View {
             NSApp.activate()
         }
 
-        if !activeProjects.isEmpty {
+        if auth.account == nil {
+            Divider()
+            Text("Open Wrap to log in")
+        } else if !activeProjects.isEmpty {
             Divider()
             Text("Launch a workspace")
             ForEach(activeProjects.prefix(5)) { project in
