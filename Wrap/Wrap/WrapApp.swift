@@ -17,6 +17,8 @@ struct WrapApp: App {
             ContentView()
                 .preferredColorScheme(.dark)
         }
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 1180, height: 820)
         .modelContainer(container)
 
         MenuBarExtra {

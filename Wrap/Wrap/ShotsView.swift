@@ -57,13 +57,6 @@ struct ShotsView: View {
                 )
             }
         }
-        .toolbar {
-            ToolbarItem {
-                Button("Shot Details", systemImage: "sidebar.right") {
-                    showDetails.toggle()
-                }
-            }
-        }
         .onChange(of: selectedShotID) { _, newValue in
             if newValue != nil { showDetails = true }
         }
@@ -80,6 +73,10 @@ struct ShotsView: View {
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundStyle(Color.wrapSecondary)
                 }
+                Button(showDetails ? "Hide details" : "Details", systemImage: "sidebar.right") {
+                    showDetails.toggle()
+                }
+                .buttonStyle(.wrapSecondary)
             }
             if !shots.isEmpty {
                 ThinProgressBar(value: Double(doneCount) / Double(shots.count))

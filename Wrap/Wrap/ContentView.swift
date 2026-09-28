@@ -1,107 +1,137 @@
 import SwiftUI
 import SwiftData
 
-/// The main window: projects on the left, the selected project on the right.
+/// Which page the main window is showing.
+enum Route: Hashable {
+    case dashboard
+    case projects
+    case project(PersistentIdentifier)
+}
+
+/// The main window: a top bar, page tabs, then the current page.
 struct ContentView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
-    @State private var selectedID: PersistentIdentifier?
+    @State private var route: Route = .dashboard
 
     private var activeProjects: [Project] { projects.filter { !$0.isWrapped } }
-    private var wrappedProjects: [Project] { projects.filter { $0.isWrapped } }
-    private var selectedProject: Project? {
-        projects.first { $0.persistentModelID == selectedID }
-    }
 
     var body: some View {
-        NavigationSplitView {
-            List(selection: $selectedID) {
-                Section("Active") {
-                    ForEach(activeProjects) { project in
-                        row(for: project)
-                    }
-                }
-                if !wrappedProjects.isEmpty {
-                    Section("Wrapped") {
-                        ForEach(wrappedProjects) { project in
-                            row(for: project)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Projects")
-            .navigationSplitViewColumnWidth(min: 200, ideal: 240)
-            .scrollContentBackground(.hidden)
-            .background(Color.wrapBackground)
-            .safeAreaInset(edge: .top) {
-                HStack(spacing: 8) {
-                    Image("WrapLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 20)
-                    Text("Wrap")
-                        .font(.system(size: 15, weight: .semibold))
-                        .tracking(-0.2)
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-            }
-            .toolbar {
-                ToolbarItem {
-                    Button("New Project", systemImage: "plus", action: addProject)
-                        .keyboardShortcut("n")
-                }
-            }
-            .onDeleteCommand {
-                if let project = selectedProject { delete(project) }
-            }
-        } detail: {
-            if let project = selectedProject {
-                ProjectDetailView(project: project)
-                    .id(project.persistentModelID)
-            } else {
-                ContentUnavailableView(
-                    "No project selected",
-                    systemImage: "film.stack",
-                    description: Text("Pick a project, or press + to make one.")
-                )
+        VStack(spacing: 0) {
+            TopBar(
+                status: statusText,
+                onProjects: { route = .projects },
+                onNewProject: { createProject(named: "") }
+            )
+            Rectangle().fill(Color.wrapBorder).frame(height: 1)
+            pageTabs
+            page
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.wrapBackground)
+        }
+        .background(Color.wrapBackground)
+        .frame(minWidth: 900, minHeight: 640)
+    }
+
+    // MARK: Pages
+
+    @ViewBuilder private var page: some View {
+        switch route {
+        case .dashboard:
+            DashboardView(projects: projects, open: open, create: createProject)
+        case .projects:
+            ProjectsListView(projects: projects, open: open, create: createProject, delete: delete)
+        case .project(let id):
+            if let project = projects.first(where: { $0.persistentModelID == id }) {
+                ProjectPage(project: project, back: { route = .dashboard }, delete: { delete(project) })
+            } else {
+                DashboardView(projects: projects, open: open, create: createProject)
             }
         }
     }
 
-    /// One project in the sidebar, with a right-click menu.
-    private func row(for project: Project) -> some View {
-        Text(project.displayName)
-            .tag(project.persistentModelID)
-            .contextMenu {
-                Button(project.isWrapped ? "Move to Active" : "Mark as Wrapped") {
-                    project.isWrapped.toggle()
-                }
-                Divider()
-                Button("Delete", role: .destructive) {
-                    delete(project)
-                }
-            }
+    private var pageTabs: some View {
+        HStack(spacing: 28) {
+            tab("Dashboard", isOn: route == .dashboard) { route = .dashboard }
+            tab("Projects", isOn: route != .dashboard) { route = .projects }
+            Spacer()
+        }
+        .padding(.horizontal, 48)
+        .padding(.vertical, 16)
     }
 
-    private func addProject() {
-        let project = Project(name: "Untitled Project")
+    private func tab(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
+        Button(title, action: action)
+            .buttonStyle(.plain)
+            .font(.system(size: 14))
+            .foregroundStyle(isOn ? Color.white : Color.wrapSecondary)
+    }
+
+    private var statusText: String {
+        let count = activeProjects.count
+        let left = activeProjects.flatMap(\.shots).filter { !$0.isDone }.count
+        let projectsPart = count == 1 ? "1 active project" : "\(count) active projects"
+        let shotsPart = left == 1 ? "1 shot to go" : "\(left) shots to go"
+        return count == 0 ? "No projects yet · make one to get started" : "\(projectsPart) · \(shotsPart)"
+    }
+
+    // MARK: Actions
+
+    private func open(_ project: Project) {
+        route = .project(project.persistentModelID)
+    }
+
+    private func createProject(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        let project = Project(name: trimmed.isEmpty ? "Untitled Project" : trimmed)
         context.insert(project)
         try? context.save()   // save first so the project keeps a stable ID
-        selectedID = project.persistentModelID
+        open(project)
     }
 
     private func delete(_ project: Project) {
-        if project.persistentModelID == selectedID { selectedID = nil }
+        if case .project(let id) = route, id == project.persistentModelID {
+            route = .dashboard
+        }
         context.delete(project)
         try? context.save()
+    }
+}
+
+/// The strip across the top: logo, status, and quick buttons.
+struct TopBar: View {
+    let status: String
+    let onProjects: () -> Void
+    let onNewProject: () -> Void
+
+    var body: some View {
+        HStack(spacing: 14) {
+            HStack(spacing: 8) {
+                Image("WrapLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 18)
+                Text("wrap")
+                    .font(.system(size: 16, weight: .semibold))
+                    .tracking(-0.3)
+            }
+            Rectangle().fill(Color.wrapBorder).frame(width: 1, height: 18)
+            Text(status)
+                .font(.system(size: 13))
+                .foregroundStyle(Color.wrapSecondary)
+                .lineLimit(1)
+            Spacer()
+            Button("Projects", action: onProjects).buttonStyle(.wrapSecondary)
+            Button("New project", action: onNewProject).buttonStyle(.wrapSecondary)
+            Button("Quit") { NSApp.terminate(nil) }.buttonStyle(.wrapSecondary)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 34)   // room for the window's close/minimise buttons
+        .padding(.bottom, 14)
     }
 }
 
 #Preview {
     ContentView()
         .modelContainer(for: [Project.self, Shot.self, WorkspaceItem.self], inMemory: true)
+        .preferredColorScheme(.dark)
 }
