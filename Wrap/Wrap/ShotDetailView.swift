@@ -31,6 +31,8 @@ struct ShotDetailView: View {
             }
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.wrapBackground)
         .fileImporter(isPresented: $choosingImage, allowedContentTypes: [.image]) { result in
             if case .success(let url) = result {
                 loadImage(from: url)

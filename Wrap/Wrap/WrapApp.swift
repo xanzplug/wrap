@@ -15,6 +15,7 @@ struct WrapApp: App {
     var body: some Scene {
         Window("Wrap", id: "main") {
             ContentView()
+                .preferredColorScheme(.dark)
         }
         .modelContainer(container)
 

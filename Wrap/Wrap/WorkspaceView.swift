@@ -34,6 +34,7 @@ struct WorkspaceView: View {
                 }
                 .onMove(perform: move)
             }
+            .scrollContentBackground(.hidden)
             .overlay {
                 if items.isEmpty {
                     ContentUnavailableView(
@@ -48,7 +49,6 @@ struct WorkspaceView: View {
                 return !urls.isEmpty
             }
 
-            Divider()
             HStack {
                 Button("Add App…", systemImage: "app.badge.checkmark") {
                     importingApps = true
@@ -64,8 +64,10 @@ struct WorkspaceView: View {
                 }
                 Spacer()
             }
-            .padding(12)
+            .buttonStyle(.wrapSecondary)
+            .padding(16)
         }
+        .background(Color.wrapBackground)
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: importingApps ? [.application] : [.item],
@@ -92,27 +94,31 @@ struct WorkspaceView: View {
     }
 
     private var header: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(items.isEmpty ? "Nothing to open yet" : "\(items.count) item\(items.count == 1 ? "" : "s"), opened top to bottom")
-                    .font(.headline)
-                if let layoutMessage {
-                    Text(layoutMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 10) {
+            Eyebrow("Workspace")
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Heading(items.isEmpty ? "Nothing to open yet" : "\(items.count) item\(items.count == 1 ? "" : "s")")
+                    Text(layoutMessage ?? "Opens top to bottom. Arrange your windows, then Save Layout.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.wrapSecondary)
                 }
+                Spacer()
+                Button("Save Layout", systemImage: "rectangle.3.group", action: saveLayout)
+                    .buttonStyle(.wrapSecondary)
+                    .help("Arrange the windows how you like, then press this to remember their places.")
+                    .disabled(items.isEmpty)
+                Button("Hide") { WorkspaceLauncher.hide(items) }
+                    .buttonStyle(.wrapSecondary)
+                    .disabled(items.isEmpty)
+                Button("Launch Workspace", systemImage: "play.fill") { WorkspaceLauncher.launch(items) }
+                    .buttonStyle(.wrapPrimary)
+                    .disabled(items.isEmpty)
             }
-            Spacer()
-            Button("Save Layout", systemImage: "rectangle.3.group", action: saveLayout)
-                .help("Arrange the windows how you like, then press this to remember their places.")
-                .disabled(items.isEmpty)
-            Button("Hide Workspace") { WorkspaceLauncher.hide(items) }
-                .disabled(items.isEmpty)
-            Button("Launch Workspace", systemImage: "play.fill") { WorkspaceLauncher.launch(items) }
-                .buttonStyle(.borderedProminent)
-                .disabled(items.isEmpty)
         }
-        .padding(12)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
     }
 
     private func saveLayout() {

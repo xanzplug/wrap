@@ -34,5 +34,7 @@ struct ProjectDetailView: View {
             .foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(Color.wrapBackground)
     }
 }

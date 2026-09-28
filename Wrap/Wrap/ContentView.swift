@@ -31,6 +31,8 @@ struct ContentView: View {
             }
             .navigationTitle("Projects")
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
+            .scrollContentBackground(.hidden)
+            .background(Color.wrapBackground)
             .toolbar {
                 ToolbarItem {
                     Button("New Project", systemImage: "plus", action: addProject)
@@ -50,6 +52,8 @@ struct ContentView: View {
                     systemImage: "film.stack",
                     description: Text("Pick a project, or press + to make one.")
                 )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.wrapBackground)
             }
         }
     }

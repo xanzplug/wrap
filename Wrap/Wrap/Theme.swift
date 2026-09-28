@@ -1,0 +1,106 @@
+import SwiftUI
+
+// Wrap's look: near-black, white type, soft grey borders, pill buttons.
+
+extension Color {
+    /// The window background.
+    static let wrapBackground = Color(white: 0.04)
+    /// Cards and bars that sit on the background.
+    static let wrapCard = Color(white: 0.075)
+    /// Thin outlines around cards and secondary buttons.
+    static let wrapBorder = Color.white.opacity(0.09)
+    /// Quiet text: labels, captions, counts.
+    static let wrapSecondary = Color.white.opacity(0.55)
+}
+
+/// White pill with black text, for the main action on a screen.
+struct WrapPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 7)
+            .background(Capsule().fill(Color.white))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.35)
+    }
+}
+
+/// Dark pill with a thin outline, for everything else.
+struct WrapSecondaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 7)
+            .background(Capsule().fill(Color.white.opacity(configuration.isPressed ? 0.1 : 0.03)))
+            .overlay(Capsule().strokeBorder(Color.wrapBorder))
+            .opacity(isEnabled ? 1 : 0.35)
+    }
+}
+
+extension ButtonStyle where Self == WrapPrimaryButtonStyle {
+    static var wrapPrimary: WrapPrimaryButtonStyle { .init() }
+}
+
+extension ButtonStyle where Self == WrapSecondaryButtonStyle {
+    static var wrapSecondary: WrapSecondaryButtonStyle { .init() }
+}
+
+extension View {
+    /// A dark rounded card with a thin border.
+    func wrapCard(padding: CGFloat = 16) -> some View {
+        self
+            .padding(padding)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.wrapCard))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.wrapBorder))
+    }
+}
+
+/// Small grey uppercase label above a heading, e.g. "SHOT LIST".
+struct Eyebrow: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text.uppercased())
+            .font(.system(size: 11, weight: .medium))
+            .tracking(1.2)
+            .foregroundStyle(Color.wrapSecondary)
+    }
+}
+
+/// A large heading with tight letter spacing.
+struct Heading: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 22, weight: .medium))
+            .tracking(-0.4)
+            .foregroundStyle(.white)
+    }
+}
+
+/// A thin white progress line on a faint track.
+struct ThinProgressBar: View {
+    let value: Double   // 0...1
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.white.opacity(0.1))
+                Capsule().fill(Color.white)
+                    .frame(width: geo.size.width * min(max(value, 0), 1))
+            }
+        }
+        .frame(height: 3)
+        .animation(.easeOut(duration: 0.25), value: value)
+    }
+}

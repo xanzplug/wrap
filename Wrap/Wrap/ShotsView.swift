@@ -33,8 +33,8 @@ struct ShotsView: View {
             .onDeleteCommand {
                 if let shot = selectedShot { delete(shot) }
             }
+            .scrollContentBackground(.hidden)
 
-            Divider()
             HStack {
                 Image(systemName: "plus.circle")
                     .foregroundStyle(.secondary)
@@ -42,8 +42,10 @@ struct ShotsView: View {
                     .textFieldStyle(.plain)
                     .onSubmit(addShot)
             }
-            .padding(12)
+            .wrapCard(padding: 12)
+            .padding(16)
         }
+        .background(Color.wrapBackground)
         .inspector(isPresented: $showDetails) {
             if let shot = selectedShot {
                 ShotDetailView(shot: shot)
@@ -68,14 +70,24 @@ struct ShotsView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(shots.isEmpty ? "No shots yet" : "\(doneCount) of \(shots.count) shot")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 10) {
+            Eyebrow("Shot list")
+            HStack(alignment: .firstTextBaseline) {
+                Heading(shots.isEmpty ? "No shots yet" : "\(doneCount) of \(shots.count) shot")
+                Spacer()
+                if !shots.isEmpty {
+                    Text("\(Int((Double(doneCount) / Double(shots.count) * 100).rounded()))%")
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundStyle(Color.wrapSecondary)
+                }
+            }
             if !shots.isEmpty {
-                ProgressView(value: Double(doneCount), total: Double(shots.count))
+                ThinProgressBar(value: Double(doneCount) / Double(shots.count))
             }
         }
-        .padding(12)
+        .padding(.horizontal, 20)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
