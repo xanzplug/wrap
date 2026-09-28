@@ -20,3 +20,8 @@ node_modules/
 
 # Files saved by Claude chats
 Claude outputs/
+
+# Exported app builds and macOS Finder files
+Wrap export/
+*.app
+.DS_Store
