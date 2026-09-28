@@ -14,8 +14,11 @@ struct RootView: View {
                     .background(Color.wrapBackground)
             case .signedOut:
                 AuthView()
-            case .signedIn:
+            case .signedIn(let account):
+                // Each account has its own projects.
                 ContentView()
+                    .modelContainer(LibraryStore.container(for: account.id))
+                    .id(account.id)
             }
         }
         .frame(minWidth: 900, minHeight: 640)
