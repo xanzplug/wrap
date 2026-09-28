@@ -19,8 +19,10 @@ struct WrapApp: App {
         }
         .modelContainer(container)
 
-        MenuBarExtra("Wrap", systemImage: "film.stack") {
+        MenuBarExtra {
             MenuBarContent()
+        } label: {
+            Image("MenuBarIcon")
         }
         .modelContainer(container)
     }

@@ -33,6 +33,20 @@ struct ContentView: View {
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
             .scrollContentBackground(.hidden)
             .background(Color.wrapBackground)
+            .safeAreaInset(edge: .top) {
+                HStack(spacing: 8) {
+                    Image("WrapLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 20)
+                    Text("Wrap")
+                        .font(.system(size: 15, weight: .semibold))
+                        .tracking(-0.2)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+            }
             .toolbar {
                 ToolbarItem {
                     Button("New Project", systemImage: "plus", action: addProject)
