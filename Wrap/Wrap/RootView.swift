@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// Shows the sign-in screen until someone is logged in, then the app.
 struct RootView: View {
