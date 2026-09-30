@@ -28,6 +28,12 @@ final class WorkspaceItem {
     var layoutData: Data?
     var project: Project?
 
+    /// Stable ID shared with the server, so the same item matches on every Mac.
+    var remoteID: UUID = UUID()
+    /// The field values last sent to or received from the server.
+    /// If `snapshot` differs from this, there are local changes to upload.
+    var syncedSnapshot: String = ""
+
     init(kind: Kind, name: String, location: String, order: Int) {
         self.kindRaw = kind.rawValue
         self.name = name
@@ -36,6 +42,13 @@ final class WorkspaceItem {
     }
 
     var kind: Kind { Kind(rawValue: kindRaw) ?? .file }
+
+    /// The synced fields, joined into one string to spot changes.
+    /// Window positions aren't synced; they depend on this Mac's screens.
+    var snapshot: String {
+        [kindRaw, name, location, String(order),
+         project?.remoteID.uuidString ?? ""].joined(separator: "\u{1F}")
+    }
 
     var url: URL? {
         kind == .website ? URL(string: location) : URL(fileURLWithPath: location)

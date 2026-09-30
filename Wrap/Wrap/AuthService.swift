@@ -31,6 +31,7 @@ final class AuthService {
 
     private(set) var state: State = .loading
     private var accessToken: String?
+    private var accessExpiry: Date = .distantPast
 
     private static let refreshTokenKey = "refreshToken"
 
@@ -92,8 +93,24 @@ final class AuthService {
             _ = try? await post("/auth/v1/logout", body: [:], bearer: accessToken)
         }
         accessToken = nil
+        accessExpiry = .distantPast
         Keychain.delete(Self.refreshTokenKey)
         state = .signedOut
+    }
+
+    /// A current access token for talking to the database, refreshed when it's about to expire.
+    func validAccessToken() async throws -> String {
+        if let accessToken, Date() < accessExpiry.addingTimeInterval(-60) {
+            return accessToken
+        }
+        guard let refreshToken = Keychain.read(Self.refreshTokenKey) else {
+            throw AuthError(message: "Please log in again.")
+        }
+        let json = try await post("/auth/v1/token?grant_type=refresh_token",
+                                  body: ["refresh_token": refreshToken])
+        try handleSession(json)
+        guard let accessToken else { throw AuthError(message: "Please log in again.") }
+        return accessToken
     }
 
     // MARK: Helpers
@@ -110,6 +127,7 @@ final class AuthService {
         let name = (metadata?["name"] as? String)?.trimmingCharacters(in: .whitespaces) ?? ""
 
         accessToken = access
+        accessExpiry = Date().addingTimeInterval((json["expires_in"] as? Double) ?? 3600)
         Keychain.save(refresh, for: Self.refreshTokenKey)
         if !name.isEmpty {
             UserDefaults.standard.set(name, forKey: "displayName")   // used by the dashboard greeting

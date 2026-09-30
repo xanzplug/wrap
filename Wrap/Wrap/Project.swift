@@ -10,6 +10,12 @@ final class Project {
     var createdAt: Date
     var isWrapped: Bool
 
+    /// Stable ID shared with the server, so the same item matches on every Mac.
+    var remoteID: UUID = UUID()
+    /// The field values last sent to or received from the server.
+    /// If `snapshot` differs from this, there are local changes to upload.
+    var syncedSnapshot: String = ""
+
     /// Deleting a project also deletes its shots.
     @Relationship(deleteRule: .cascade, inverse: \Shot.project)
     var shots: [Shot] = []
@@ -33,6 +39,11 @@ final class Project {
     /// Workspace items in the order they open.
     var sortedWorkspaceItems: [WorkspaceItem] {
         workspaceItems.sorted { $0.order < $1.order }
+    }
+
+    /// The synced fields, joined into one string to spot changes.
+    var snapshot: String {
+        [name, clientName, String(isWrapped)].joined(separator: "\u{1F}")
     }
 
     /// The name to show, even if the user cleared it.

@@ -109,6 +109,7 @@ struct ShotsView: View {
 
     private func delete(_ shot: Shot) {
         if shot.persistentModelID == selectedShotID { selectedShotID = nil }
+        SyncEngine.shared.recordDeletion(.shots, id: shot.remoteID)
         context.delete(shot)
         try? context.save()
     }

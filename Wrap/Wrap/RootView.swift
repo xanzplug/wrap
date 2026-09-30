@@ -28,5 +28,17 @@ struct RootView: View {
                 await auth.restoreSession()
             }
         }
+        // Start syncing when someone logs in; stop when they log out.
+        .task(id: auth.account?.id) {
+            if let account = auth.account {
+                SyncEngine.shared.start(
+                    accountID: account.id,
+                    container: LibraryStore.container(for: account.id),
+                    auth: auth
+                )
+            } else {
+                SyncEngine.shared.stop()
+            }
+        }
     }
 }

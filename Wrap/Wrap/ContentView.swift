@@ -92,6 +92,7 @@ struct ContentView: View {
         if case .project(let id) = route, id == project.persistentModelID {
             route = .dashboard
         }
+        SyncEngine.shared.recordDeletion(.projects, id: project.remoteID)
         context.delete(project)
         try? context.save()
     }
@@ -124,6 +125,7 @@ struct TopBar: View {
             Button("Projects", action: onProjects).buttonStyle(.wrapSecondary)
             Button("New project", action: onNewProject).buttonStyle(.wrapSecondary)
             Button("Quit") { NSApp.terminate(nil) }.buttonStyle(.wrapSecondary)
+            syncLabel
             accountMenu
         }
         .padding(.horizontal, 20)
@@ -131,11 +133,35 @@ struct TopBar: View {
         .padding(.bottom, 14)
     }
 
+    /// A small "Synced" / "Syncing…" / "Sync failed" note next to your initial.
+    @ViewBuilder private var syncLabel: some View {
+        switch SyncEngine.shared.status {
+        case .idle:
+            EmptyView()
+        case .syncing:
+            Text("Syncing…")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.wrapSecondary)
+        case .synced:
+            Label("Synced", systemImage: "checkmark.icloud")
+                .font(.system(size: 12))
+                .foregroundStyle(Color.wrapSecondary)
+        case .failed(let message):
+            Label("Sync failed", systemImage: "exclamationmark.icloud")
+                .font(.system(size: 12))
+                .foregroundStyle(.orange)
+                .help(message)
+        }
+    }
+
     /// A round initial; click for your email and Sign Out.
     private var accountMenu: some View {
         Menu {
             if let account = auth.account {
                 Text(account.name.isEmpty ? account.email : "\(account.name) · \(account.email)")
+            }
+            Button("Sync Now") {
+                Task { await SyncEngine.shared.syncNow() }
             }
             Divider()
             Button("Sign Out") {

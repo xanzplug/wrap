@@ -15,6 +15,12 @@ final class Shot {
     @Attribute(.externalStorage) var referenceImage: Data?
     var project: Project?
 
+    /// Stable ID shared with the server, so the same item matches on every Mac.
+    var remoteID: UUID = UUID()
+    /// The field values last sent to or received from the server.
+    /// If `snapshot` differs from this, there are local changes to upload.
+    var syncedSnapshot: String = ""
+
     init(title: String, order: Int) {
         self.title = title
         self.isDone = false
@@ -22,5 +28,12 @@ final class Shot {
         self.outfit = ""
         self.location = ""
         self.notes = ""
+    }
+
+    /// The synced fields, joined into one string to spot changes.
+    /// Reference images aren't synced yet; they stay on this Mac.
+    var snapshot: String {
+        [title, String(isDone), String(order), outfit, location, notes,
+         project?.remoteID.uuidString ?? ""].joined(separator: "\u{1F}")
     }
 }

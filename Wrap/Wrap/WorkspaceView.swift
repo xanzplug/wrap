@@ -169,6 +169,7 @@ struct WorkspaceView: View {
     }
 
     private func delete(_ item: WorkspaceItem) {
+        SyncEngine.shared.recordDeletion(.workspaceItems, id: item.remoteID)
         context.delete(item)
         try? context.save()
     }
