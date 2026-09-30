@@ -71,6 +71,7 @@ final class SyncEngine {
             try await pullChanges(context)
             try context.save()
             status = .synced(Date())
+            await DeliveryService.shared.refresh()   // spot client downloads
         } catch {
             status = .failed(error.localizedDescription)
         }

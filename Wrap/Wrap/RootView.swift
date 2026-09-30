@@ -31,6 +31,7 @@ struct RootView: View {
         // Start syncing when someone logs in; stop when they log out.
         .task(id: auth.account?.id) {
             if let account = auth.account {
+                DeliveryService.shared.auth = auth
                 SyncEngine.shared.start(
                     accountID: account.id,
                     container: LibraryStore.container(for: account.id),

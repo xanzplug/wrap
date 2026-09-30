@@ -13,6 +13,9 @@ struct ProjectDetailView: View {
             Tab("Workspace", systemImage: "macwindow.on.rectangle") {
                 WorkspaceView(project: project)
             }
+            Tab("Deliveries", systemImage: "paperplane") {
+                DeliveriesView(project: project)
+            }
             Tab("Overview", systemImage: "info.circle") {
                 overview
             }
@@ -28,10 +31,6 @@ struct ProjectDetailView: View {
                 Toggle("Wrapped", isOn: $project.isWrapped)
             }
 
-            Section("Coming next") {
-                Label("Deliveries", systemImage: "paperplane")
-            }
-            .foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
