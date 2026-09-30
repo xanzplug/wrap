@@ -99,7 +99,7 @@ struct DeliveriesView: View {
                 .font(.system(size: 22))
             Text("Drop a finished export here")
                 .font(.system(size: 13, weight: .medium))
-            Text("You'll get a link to send your client. No account needed on their side.")
+            Text("Up to 50 MB per file. You'll get a link to send your client, with no account needed on their side.")
                 .font(.system(size: 12))
                 .foregroundStyle(Color.wrapSecondary)
         }

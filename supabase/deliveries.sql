@@ -25,3 +25,9 @@ alter table public.deliveries enable row level security;
 drop policy if exists "Read own deliveries" on public.deliveries;
 create policy "Read own deliveries" on public.deliveries for select to authenticated
   using ((select auth.uid()) = user_id);
+
+-- Private storage for delivered files (50 MB per file on the free plan).
+-- Only the delivery Worker (secret key) reads and writes here.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('deliveries', 'deliveries', false, 52428800)
+on conflict (id) do nothing;

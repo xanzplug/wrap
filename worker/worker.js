@@ -1,16 +1,17 @@
-// Wrap delivery service (Cloudflare Worker).
+// Wrap delivery service (Cloudflare Worker, free plan).
 //
-// - Receives uploads from the Wrap Mac app in parts and stores them in R2.
+// - Receives a file from the Wrap Mac app and stores it in Supabase Storage.
 // - Gives each file a share link: /d/<token> is a download page for the client.
 // - Deletes files an hour after the first download, or after 48 hours unused.
 //
 // Settings (Cloudflare dashboard > Worker > Settings):
-//   Bindings:  BUCKET  -> R2 bucket "wrap-deliveries"
-//   Variables: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, MAX_ACTIVE_GB (optional, default 10)
+//   Variables: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
 //   Secret:    SUPABASE_SECRET_KEY  (Supabase > Project Settings > API Keys > secret key)
 //   Cron:      every hour  (0 * * * *)
 
-const PART_SIZE = 50 * 1024 * 1024;       // 50 MB per upload part
+const BUCKET = "deliveries";               // private Supabase Storage bucket
+const MAX_FILE_BYTES = 50 * 1024 * 1024;   // Supabase free plan: 50 MB per file
+const MAX_ACTIVE_BYTES = 900 * 1024 * 1024; // Supabase free plan has 1 GB of storage in total
 const EXPIRY_HOURS = 48;                   // unused links expire after this
 const GRACE_MINUTES_AFTER_DOWNLOAD = 60;   // time to retry a dropped download
 
@@ -31,11 +32,8 @@ export default {
         const user = await authenticate(request, env);
         if (!user) return json({ error: "Please log in to Wrap again." }, 401);
 
-        if (parts.length === 1 && request.method === "POST") return await createDelivery(request, env, user);
-        const id = parts[1];
-        if (parts[2] === "parts" && request.method === "PUT") return await uploadPart(id, Number(parts[3]), request, env, user);
-        if (parts[2] === "complete" && request.method === "POST") return await completeDelivery(id, request, env, user, url);
-        if (parts.length === 2 && request.method === "DELETE") return await cancelDelivery(id, env, user);
+        if (parts.length === 1 && request.method === "POST") return await createDelivery(request, env, user, url);
+        if (parts.length === 2 && request.method === "DELETE") return await cancelDelivery(parts[1], env, user);
       }
 
       if (url.pathname === "/") return new Response("Wrap delivery service is running.", { status: 200 });
@@ -52,70 +50,57 @@ export default {
 
 // ---------- App API ----------
 
-async function createDelivery(request, env, user) {
-  const body = await request.json();
-  const fileName = cleanFileName(body.file_name);
-  const size = Math.max(0, Number(body.size_bytes) || 0);
+async function createDelivery(request, env, user, url) {
+  const fileName = cleanFileName(decodeURIComponent(request.headers.get("X-File-Name") || "file"));
+  const projectId = request.headers.get("X-Project-Id") || null;
+  const size = Number(request.headers.get("Content-Length")) || 0;
+  const contentType = request.headers.get("Content-Type") || "application/octet-stream";
 
-  // Per-account space for files that are still waiting to be downloaded.
-  const limitBytes = (Number(env.MAX_ACTIVE_GB) || 10) * 1024 ** 3;
-  const active = await db(env, `deliveries?user_id=eq.${user.id}&status=in.(uploading,ready)&select=size_bytes`);
+  if (size > MAX_FILE_BYTES) {
+    return json({ error: `That file is ${formatBytes(size)}. Files can be up to 50 MB on the free plan.` }, 413);
+  }
+
+  // Space for files that are still waiting to be downloaded.
+  const active = await db(env, `deliveries?user_id=eq.${user.id}&status=in.(uploading,ready,downloaded)&select=size_bytes`);
   const used = active.reduce((sum, d) => sum + Number(d.size_bytes || 0), 0);
-  if (used + size > limitBytes) {
-    return json({ error: `Not enough space. ${gb(used)} of ${gb(limitBytes)} is waiting for clients to download.` }, 413);
+  if (used + size > MAX_ACTIVE_BYTES) {
+    return json({ error: `Not enough space. ${formatBytes(used)} is still waiting for clients to download. Space frees up as they do.` }, 413);
   }
 
   const id = crypto.randomUUID();
   const token = randomToken();
   const key = `${user.id}/${id}/${fileName}`;
-  const upload = await env.BUCKET.createMultipartUpload(key, {
-    httpMetadata: { contentType: body.content_type || "application/octet-stream" },
-  });
 
+  const stored = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${encodePath(key)}`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SECRET_KEY,
+      "Content-Type": contentType,
+      "x-upsert": "false",
+    },
+    body: request.body,
+  });
+  if (!stored.ok) {
+    return json({ error: `Couldn't store the file (${stored.status}). ${await stored.text()}` }, 502);
+  }
+
+  const expiresAt = new Date(Date.now() + EXPIRY_HOURS * 3600e3).toISOString();
   await db(env, "deliveries", {
     method: "POST",
     body: JSON.stringify({
       id,
       user_id: user.id,
-      project_id: body.project_id || null,
+      project_id: projectId,
       file_name: fileName,
       size_bytes: size,
       r2_key: key,
-      upload_id: upload.uploadId,
       token,
-      status: "uploading",
-      expires_at: new Date(Date.now() + EXPIRY_HOURS * 3600e3).toISOString(),
+      status: "ready",
+      expires_at: expiresAt,
     }),
   });
 
-  return json({ id, part_size: PART_SIZE });
-}
-
-async function uploadPart(id, partNumber, request, env, user) {
-  const row = await ownDelivery(id, env, user);
-  if (!row || row.status !== "uploading") return json({ error: "This upload isn't open any more." }, 404);
-  if (!Number.isInteger(partNumber) || partNumber < 1) return json({ error: "Bad part number." }, 400);
-
-  const upload = env.BUCKET.resumeMultipartUpload(row.r2_key, row.upload_id);
-  const part = await upload.uploadPart(partNumber, request.body);
-  return json({ part_number: part.partNumber, etag: part.etag });
-}
-
-async function completeDelivery(id, request, env, user, url) {
-  const row = await ownDelivery(id, env, user);
-  if (!row || row.status !== "uploading") return json({ error: "This upload isn't open any more." }, 404);
-
-  const body = await request.json();
-  const parts = (body.parts || []).map((p) => ({ partNumber: p.part_number, etag: p.etag }));
-  const upload = env.BUCKET.resumeMultipartUpload(row.r2_key, row.upload_id);
-  const object = await upload.complete(parts);
-
-  await db(env, `deliveries?id=eq.${id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "ready", size_bytes: object.size, upload_id: null }),
-  });
-
-  return json({ link: `${url.origin}/d/${row.token}`, token: row.token, expires_at: row.expires_at });
+  return json({ id, link: `${url.origin}/d/${token}`, token, expires_at: expiresAt });
 }
 
 async function cancelDelivery(id, env, user) {
@@ -153,30 +138,22 @@ async function serveFile(token, request, env, ctx) {
   const row = await deliveryByToken(token, env);
   if (!isAvailable(row)) return new Response("This link has expired.", { status: 410 });
 
-  const object = await env.BUCKET.get(row.r2_key, { range: request.headers });
-  if (!object) return new Response("File not found.", { status: 404 });
+  const rangeHeader = request.headers.get("range");
+  const upstream = await fetch(`${env.SUPABASE_URL}/storage/v1/object/authenticated/${BUCKET}/${encodePath(row.r2_key)}`, {
+    headers: {
+      apikey: env.SUPABASE_SECRET_KEY,
+      ...(rangeHeader ? { Range: rangeHeader } : {}),
+    },
+  });
+  if (!upstream.ok && upstream.status !== 206) return new Response("File not found.", { status: 404 });
 
   const headers = new Headers();
-  object.writeHttpMetadata(headers);
-  headers.set("ETag", object.httpEtag);
+  for (const name of ["Content-Type", "Content-Length", "Content-Range", "ETag", "Last-Modified"]) {
+    const value = upstream.headers.get(name);
+    if (value) headers.set(name, value);
+  }
   headers.set("Accept-Ranges", "bytes");
   headers.set("Content-Disposition", `attachment; filename="${row.file_name.replace(/"/g, "")}"`);
-
-  let status = 200;
-  const rangeHeader = request.headers.get("range");
-  if (rangeHeader && object.range) {
-    let offset = object.range.offset ?? 0;
-    let length = object.range.length ?? object.size - offset;
-    if (object.range.suffix !== undefined) {
-      length = Math.min(object.range.suffix, object.size);
-      offset = object.size - length;
-    }
-    status = 206;
-    headers.set("Content-Range", `bytes ${offset}-${offset + length - 1}/${object.size}`);
-    headers.set("Content-Length", String(length));
-  } else {
-    headers.set("Content-Length", String(object.size));
-  }
 
   // Count a download when it starts from the beginning of the file.
   if (!rangeHeader || /^bytes=0-/.test(rangeHeader)) {
@@ -190,7 +167,7 @@ async function serveFile(token, request, env, ctx) {
     }));
   }
 
-  return new Response(object.body, { status, headers });
+  return new Response(upstream.body, { status: upstream.status, headers });
 }
 
 function isAvailable(row) {
@@ -222,11 +199,11 @@ async function cleanup(env) {
 
 async function removeFile(row, env) {
   try {
-    if (row.status === "uploading" && row.upload_id) {
-      await env.BUCKET.resumeMultipartUpload(row.r2_key, row.upload_id).abort();
-    } else {
-      await env.BUCKET.delete(row.r2_key);
-    }
+    await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}`, {
+      method: "DELETE",
+      headers: { apikey: env.SUPABASE_SECRET_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ prefixes: [row.r2_key] }),
+    });
   } catch (_) {
     // Already gone.
   }
@@ -293,8 +270,8 @@ function formatBytes(bytes) {
   return `${value.toFixed(value < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
 }
 
-function gb(bytes) {
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+function encodePath(path) {
+  return path.split("/").map(encodeURIComponent).join("/");
 }
 
 function escapeHTML(text) {

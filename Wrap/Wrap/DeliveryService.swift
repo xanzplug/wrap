@@ -117,8 +117,11 @@ final class DeliveryService {
         await refresh()
     }
 
+    /// Supabase's free plan stores files up to 50 MB.
+    static let maxFileBytes: Int64 = 50 * 1024 * 1024
+
     private func upload(_ fileURL: URL, projectID: String, progressID: UUID) async throws -> String {
-        guard DeliveryConfig.isConfigured else {
+        guard DeliveryConfig.isConfigured, let auth, let url = URL(string: DeliveryConfig.serviceURL + "/deliveries") else {
             throw AuthError(message: "Delivery isn't connected yet.")
         }
         let hasAccess = fileURL.startAccessingSecurityScopedResource()
@@ -126,46 +129,36 @@ final class DeliveryService {
 
         let values = try fileURL.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey, .contentTypeKey])
         if values.isDirectory == true {
-            throw AuthError(message: "That's a folder. Zip it first, or send the file inside it.")
+            throw AuthError(message: "That's a folder. Zip it first (right-click > Compress), then send the zip.")
         }
         let size = Int64(values.fileSize ?? 0)
-
-        // 1. Start the delivery.
-        let start = try await service("POST", "/deliveries", json: [
-            "project_id": projectID,
-            "file_name": fileURL.lastPathComponent,
-            "size_bytes": size,
-            "content_type": values.contentType?.preferredMIMEType ?? "application/octet-stream",
-        ])
-        guard let deliveryID = start["id"] as? String else {
-            throw AuthError(message: "The delivery service didn't answer as expected.")
-        }
-        let partSize = (start["part_size"] as? Int) ?? 50 * 1024 * 1024
-
-        // 2. Send the file in parts.
-        let handle = try FileHandle(forReadingFrom: fileURL)
-        defer { try? handle.close() }
-        var parts: [[String: Any]] = []
-        var sent: Int64 = 0
-        var partNumber = 1
-        while true {
-            let chunk = try handle.read(upToCount: partSize) ?? Data()
-            if chunk.isEmpty && partNumber > 1 { break }
-            let result = try await withRetries {
-                try await self.service("PUT", "/deliveries/\(deliveryID)/parts/\(partNumber)", data: chunk)
-            }
-            parts.append(["part_number": result["part_number"] ?? partNumber, "etag": result["etag"] ?? ""])
-            sent += Int64(chunk.count)
-            let fraction = size > 0 ? Double(sent) / Double(size) : 1
-            update(progressID) { $0.fraction = min(fraction, 1) }
-            partNumber += 1
-            if chunk.count < partSize { break }
+        if size > Self.maxFileBytes {
+            let readable = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
+            throw AuthError(message: "That file is \(readable). Files can be up to 50 MB on the free plan.")
         }
 
-        // 3. Finish and get the link.
-        let done = try await service("POST", "/deliveries/\(deliveryID)/complete", json: ["parts": parts])
-        guard let link = done["link"] as? String else {
-            throw AuthError(message: "The upload finished, but no link came back.")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 600
+        request.setValue("Bearer \(try await auth.validAccessToken())", forHTTPHeaderField: "Authorization")
+        request.setValue(values.contentType?.preferredMIMEType ?? "application/octet-stream", forHTTPHeaderField: "Content-Type")
+        request.setValue(fileURL.lastPathComponent.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "file",
+                         forHTTPHeaderField: "X-File-Name")
+        request.setValue(projectID, forHTTPHeaderField: "X-Project-Id")
+
+        let tracker = UploadTracker { [weak self] fraction in
+            Task { @MainActor in self?.update(progressID) { $0.fraction = fraction } }
+        }
+        let (body, response): (Data, URLResponse)
+        do {
+            (body, response) = try await URLSession.shared.upload(for: request, fromFile: fileURL, delegate: tracker)
+        } catch {
+            throw AuthError(message: "Can't reach the delivery service. Check your internet connection.")
+        }
+        let result = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status), let link = result["link"] as? String else {
+            throw AuthError(message: result["error"] as? String ?? "Upload failed (error \(status)).")
         }
         return link
     }
@@ -200,17 +193,6 @@ final class DeliveryService {
             throw AuthError(message: result["error"] as? String ?? "Upload failed (error \(status)).")
         }
         return result
-    }
-
-    private func withRetries<T>(_ attempts: Int = 3, _ work: () async throws -> T) async throws -> T {
-        var lastError: Error?
-        for attempt in 0..<attempts {
-            do { return try await work() } catch {
-                lastError = error
-                try? await Task.sleep(for: .seconds(2 * (attempt + 1)))
-            }
-        }
-        throw lastError ?? AuthError(message: "Upload failed.")
     }
 
     private func update(_ id: UUID, _ change: (inout UploadProgress) -> Void) {
@@ -267,5 +249,20 @@ final class DeliveryService {
             expiresAt: date(row["expires_at"]),
             downloadedAt: date(row["downloaded_at"])
         )
+    }
+}
+
+/// Reports how much of an upload has been sent.
+private final class UploadTracker: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    private let onProgress: (Double) -> Void
+
+    init(onProgress: @escaping (Double) -> Void) {
+        self.onProgress = onProgress
+    }
+
+    nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64,
+                                totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        guard totalBytesExpectedToSend > 0 else { return }
+        onProgress(Double(totalBytesSent) / Double(totalBytesExpectedToSend))
     }
 }
