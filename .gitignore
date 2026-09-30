@@ -12,20 +12,12 @@ xcuserdata/
 .build/
 .swiftpm/
 
-# Node / Cloudflare backend
+# Exported app builds
+*.app
+Wrap export/
+
+# Node / Cloudflare Worker
 node_modules/
 .wrangler/
 .dev.vars
 .env
-
-# Files saved by Claude chats
-Claude outputs/
-
-# Exported app builds and macOS Finder files
-Wrap export/
-*.app
-.DS_Store
-
-# Cloudflare Wrangler
-.wrangler/
-worker/node_modules/
