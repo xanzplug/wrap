@@ -25,3 +25,7 @@ Claude outputs/
 Wrap export/
 *.app
 .DS_Store
+
+# Cloudflare Wrangler
+.wrangler/
+worker/node_modules/

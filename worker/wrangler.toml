@@ -1,0 +1,17 @@
+# Cloudflare Worker settings for Wrap's delivery service.
+# Deploy from this folder with:  npx wrangler deploy
+name = "wrap-delivery"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[vars]
+SUPABASE_URL = "https://xmgurucjbupltfekuyji.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_LE0_5ce5q4es_Gaz5SzYzQ_HthZXyrl"
+
+# Delete expired and downloaded files every hour.
+[triggers]
+crons = ["0 * * * *"]
+
+# SUPABASE_SECRET_KEY is set separately (never in this file):
+#   npx wrangler secret put SUPABASE_SECRET_KEY
