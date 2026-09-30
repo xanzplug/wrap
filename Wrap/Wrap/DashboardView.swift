@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// The home page: greeting, shot progress, projects and workspaces.
+/// The home page: greeting, shot progress, delivery space, projects, workspaces and links out.
 struct DashboardView: View {
     let projects: [Project]
     let open: (Project) -> Void
@@ -12,6 +12,7 @@ struct DashboardView: View {
     @State private var showProjects = true
     @State private var showWorkspaces = true
     @State private var editingName = false
+    @State private var showLinks = true
 
     private var active: [Project] { projects.filter { !$0.isWrapped } }
     private var allShots: [Shot] { active.flatMap(\.shots) }
@@ -24,18 +25,26 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 0) {
                 greeting
                     .padding(.top, 40)
-                progress
-                    .padding(.top, 56)
+                HStack(alignment: .top, spacing: 64) {
+                    progress
+                    storage
+                }
+                .padding(.top, 56)
                 HStack(alignment: .top, spacing: 64) {
                     projectsColumn
                     workspacesColumn
                 }
                 .padding(.top, 64)
+                linksOut
+                    .padding(.top, 64)
             }
             .frame(maxWidth: 1080, alignment: .leading)
             .padding(.horizontal, 48)
             .padding(.bottom, 56)
             .frame(maxWidth: .infinity)
+        }
+        .task {
+            await DeliveryService.shared.refresh()
         }
         .alert("Your name", isPresented: $editingName) {
             TextField("Name", text: $displayName)
@@ -86,9 +95,67 @@ struct DashboardView: View {
 
             ThinProgressBar(value: allShots.isEmpty ? 0 : Double(doneShots) / Double(allShots.count))
 
-            HintText("Across your active projects. Tick shots off on set, and this fills up. Wrapped projects don't count.")
-                .frame(maxWidth: 520, alignment: .leading)
+            HintText("Across your active projects. Tick shots off on set, and this fills up.")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: Deliveries
+
+    /// Files still on the server: waiting for a client, or just downloaded
+    /// and about to be deleted.
+    private var linksStillOut: [Delivery] {
+        DeliveryService.shared.deliveries.filter(\.isActive)
+    }
+
+    private var usedBytes: Int64 {
+        linksStillOut.reduce(0) { $0 + $1.sizeBytes }
+    }
+
+    private var storage: some View {
+        let used = usedBytes
+        let limit = DeliveryConfig.maxActiveBytes
+        return VStack(alignment: .leading, spacing: 16) {
+            Eyebrow("Waiting for clients")
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(ByteCountFormatter.string(fromByteCount: used, countStyle: .file))
+                    .foregroundStyle(.white)
+                Text("/ \(ByteCountFormatter.string(fromByteCount: limit, countStyle: .file))")
+                    .foregroundStyle(Color.wrapSecondary)
+            }
+            .font(.system(size: 32, weight: .medium))
+            .monospacedDigit()
+
+            ThinProgressBar(value: Double(used) / Double(limit))
+
+            HintText("Files your clients haven't downloaded yet. Once they do, this frees up. Links expire after 48 hours.")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var linksOut: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            CollapsibleHeader(title: "Links out", count: linksStillOut.count, isOpen: $showLinks)
+
+            if showLinks {
+                if linksStillOut.isEmpty {
+                    HintText("No links out. Open a project's Deliveries tab and drop in a finished file to get a link for your client.")
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(linksStillOut) { delivery in
+                            LinkOutRow(delivery: delivery, project: project(for: delivery)) {
+                                if let project = project(for: delivery) { open(project) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func project(for delivery: Delivery) -> Project? {
+        projects.first { $0.remoteID.uuidString.lowercased() == delivery.projectID }
     }
 
     private var projectsColumn: some View {
@@ -231,3 +298,64 @@ struct WorkspaceLaunchRow: View {
         return names.joined(separator: ", ") + (extra > 0 ? " +\(extra)" : "")
     }
 }
+
+/// One file still out with a client: name, project, size, time left, Copy Link.
+struct LinkOutRow: View {
+    let delivery: Delivery
+    let project: Project?
+    let openProject: () -> Void
+    @State private var hovering = false
+    @State private var copied = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: delivery.status == "downloaded" ? "checkmark.circle.fill" : "paperplane")
+                .foregroundStyle(delivery.status == "downloaded" ? Color.white : Color.wrapSecondary)
+                .frame(width: 18)
+
+            Button(action: openProject) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(delivery.fileName)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    Text(project?.displayName ?? "No project")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.wrapSecondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Text(detail)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(Color.wrapSecondary)
+
+            Button(copied ? "Copied" : "Copy Link") {
+                DeliveryService.shared.copyLink(delivery)
+                copied = true
+                Task {
+                    try? await Task.sleep(for: .seconds(1.5))
+                    copied = false
+                }
+            }
+            .buttonStyle(.wrapSecondary)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(hovering ? 0.05 : 0)))
+        .onHover { hovering = $0 }
+    }
+
+    private var detail: String {
+        let size = ByteCountFormatter.string(fromByteCount: delivery.sizeBytes, countStyle: .file)
+        if delivery.status == "downloaded" {
+            return "\(size) · downloaded"
+        }
+        guard let expires = delivery.expiresAt else { return size }
+        let hours = max(0, Int(expires.timeIntervalSinceNow / 3600))
+        return "\(size) · \(hours >= 1 ? "\(hours)h left" : "expiring")"
+    }
+}
+
