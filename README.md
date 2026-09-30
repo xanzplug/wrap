@@ -60,4 +60,5 @@ For the first version, the plan is to try a **small NFS server running inside th
 
 The reason for doing it this way is that the disk is what makes Wrap different from just being another file-upload app.
 
-| Option | How it works | Uploads while
+Wrap,
+The future.
