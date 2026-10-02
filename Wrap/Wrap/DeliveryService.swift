@@ -118,11 +118,16 @@ final class DeliveryService {
         await refresh()
     }
 
-    /// Supabase's free plan stores files up to 50 MB.
-    static let maxFileBytes: Int64 = 50 * 1024 * 1024
+    /// Space left for files still waiting for clients.
+    var freeBytes: Int64 {
+        let used = deliveries.filter(\.isActive).reduce(Int64(0)) { $0 + $1.sizeBytes }
+        return max(0, DeliveryConfig.maxActiveBytes - used)
+    }
 
+    /// Sends the file in pieces (Supabase's free plan allows 50 MB per stored
+    /// object), then asks the service to join them into one link.
     private func upload(_ fileURL: URL, projectID: String, progressID: UUID) async throws -> String {
-        guard DeliveryConfig.isConfigured, let auth, let url = URL(string: DeliveryConfig.serviceURL + "/deliveries") else {
+        guard DeliveryConfig.isConfigured, auth != nil else {
             throw AuthError(message: "Delivery isn't connected yet.")
         }
         let hasAccess = fileURL.startAccessingSecurityScopedResource()
@@ -133,36 +138,84 @@ final class DeliveryService {
             throw AuthError(message: "That's a folder. Zip it first (right-click > Compress), then send the zip.")
         }
         let size = Int64(values.fileSize ?? 0)
-        if size > Self.maxFileBytes {
+        guard size > 0 else { throw AuthError(message: "That file is empty.") }
+        if size > freeBytes {
             let readable = ByteCountFormatter.string(fromByteCount: size, countStyle: .file)
-            throw AuthError(message: "That file is \(readable). Files can be up to 50 MB on the free plan.")
+            let free = ByteCountFormatter.string(fromByteCount: freeBytes, countStyle: .file)
+            throw AuthError(message: "That file is \(readable), and you have \(free) free. Space frees up as clients download their files.")
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 600
-        request.setValue("Bearer \(try await auth.validAccessToken())", forHTTPHeaderField: "Authorization")
-        request.setValue(values.contentType?.preferredMIMEType ?? "application/octet-stream", forHTTPHeaderField: "Content-Type")
-        request.setValue(fileURL.lastPathComponent.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "file",
-                         forHTTPHeaderField: "X-File-Name")
-        request.setValue(projectID, forHTTPHeaderField: "X-Project-Id")
-        request.setValue(String(AppSettings.expiryHours), forHTTPHeaderField: "X-Expiry-Hours")
+        let start = try await service("POST", "/deliveries/start", json: [
+            "fileName": fileURL.lastPathComponent,
+            "size": size,
+            "projectId": projectID,
+            "contentType": values.contentType?.preferredMIMEType ?? "application/octet-stream",
+            "expiryHours": AppSettings.expiryHours,
+        ])
+        guard let id = start["id"] as? String,
+              let partSize = (start["partSize"] as? NSNumber)?.int64Value, partSize > 0,
+              let partCount = (start["partCount"] as? NSNumber)?.intValue
+        else { throw AuthError(message: "The delivery service didn't answer properly. Try again.") }
 
-        let tracker = UploadTracker { [weak self] fraction in
-            Task { @MainActor in self?.update(progressID) { $0.fraction = fraction } }
-        }
-        let (body, response): (Data, URLResponse)
         do {
-            (body, response) = try await URLSession.shared.upload(for: request, fromFile: fileURL, delegate: tracker)
+            let handle = try FileHandle(forReadingFrom: fileURL)
+            defer { try? handle.close() }
+            var sent: Int64 = 0
+            for index in 0..<partCount {
+                try handle.seek(toOffset: UInt64(Int64(index) * partSize))
+                guard let piece = try handle.read(upToCount: Int(partSize)), !piece.isEmpty else {
+                    throw AuthError(message: "Couldn't read the file. Is it still there?")
+                }
+                let before = sent
+                try await sendPiece(piece, deliveryID: id, index: index) { [weak self] fraction in
+                    let done = Double(before) + fraction * Double(piece.count)
+                    Task { @MainActor in self?.update(progressID) { $0.fraction = done / Double(size) } }
+                }
+                sent += Int64(piece.count)
+            }
+            let result = try await service("POST", "/deliveries/\(id)/complete")
+            guard let link = result["link"] as? String else {
+                throw AuthError(message: "The upload finished but no link came back. Try again.")
+            }
+            return link
         } catch {
-            throw AuthError(message: "Can't reach the delivery service. Check your internet connection.")
+            // Don't leave half a file taking up space.
+            _ = try? await service("DELETE", "/deliveries/\(id)")
+            throw error
         }
-        let result = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status), let link = result["link"] as? String else {
-            throw AuthError(message: result["error"] as? String ?? "Upload failed (error \(status)).")
+    }
+
+    /// Send one piece, trying up to 3 times if the connection drops.
+    private func sendPiece(_ data: Data, deliveryID: String, index: Int,
+                           onProgress: @escaping (Double) -> Void) async throws {
+        guard let auth, let url = URL(string: DeliveryConfig.serviceURL + "/deliveries/\(deliveryID)/parts/\(index)") else {
+            throw AuthError(message: "Please log in again.")
         }
-        return link
+        var lastError = AuthError(message: "Can't reach the delivery service. Check your internet connection.")
+        for attempt in 1...3 {
+            var request = URLRequest(url: url)
+            request.httpMethod = "PUT"
+            request.timeoutInterval = 600
+            request.setValue("Bearer \(try await auth.validAccessToken())", forHTTPHeaderField: "Authorization")
+            request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+
+            do {
+                let tracker = UploadTracker(onProgress: onProgress)
+                let (body, response) = try await URLSession.shared.upload(for: request, from: data, delegate: tracker)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+                if (200..<300).contains(status) { return }
+                let result = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
+                lastError = AuthError(message: result["error"] as? String ?? "Upload failed (error \(status)).")
+                // A problem with the request itself won't fix itself by retrying.
+                if (400..<500).contains(status) { throw lastError }
+            } catch let error as AuthError {
+                throw error
+            } catch {
+                // Network hiccup: wait a moment and try again.
+            }
+            if attempt < 3 { try await Task.sleep(for: .seconds(2 * attempt)) }
+        }
+        throw lastError
     }
 
     // MARK: Network

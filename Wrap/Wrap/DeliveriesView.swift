@@ -100,7 +100,7 @@ struct DeliveriesView: View {
                 .font(.system(size: 22))
             Text("Drop a finished export here")
                 .font(.system(size: 13, weight: .medium))
-            Text("Up to 50 MB per file. You'll get a link to send your client, with no account needed on their side.")
+            Text("Up to \(ByteCountFormatter.string(fromByteCount: DeliveryService.shared.freeBytes, countStyle: .file)) right now, the space you have free. You'll get a link to send your client, with no account needed on their side.")
                 .font(.system(size: 12))
                 .foregroundStyle(Color.wrapSecondary)
         }

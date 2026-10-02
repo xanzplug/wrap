@@ -31,3 +31,7 @@ create policy "Read own deliveries" on public.deliveries for select to authentic
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('deliveries', 'deliveries', false, 52428800)
 on conflict (id) do nothing;
+
+-- Added later: big files are stored as 45 MB pieces under r2_key/part-0000, part-0001, …
+alter table public.deliveries add column if not exists part_count integer not null default 0;
+alter table public.deliveries add column if not exists content_type text;

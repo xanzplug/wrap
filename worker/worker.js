@@ -1,6 +1,8 @@
 // Wrap delivery service (Cloudflare Worker, free plan).
 //
 // - Receives a file from the Wrap Mac app and stores it in Supabase Storage.
+//   Big files arrive in 45 MB pieces (Supabase's free plan allows 50 MB per
+//   object); the download streams the pieces back out as one file.
 // - Gives each file a share link: /d/<token> is a download page for the client.
 // - Deletes files an hour after the first download, or when the link expires
 //   (48 hours by default; the app can ask for 1 to 168 hours).
@@ -11,7 +13,8 @@
 //   Cron:      every hour  (0 * * * *)
 
 const BUCKET = "deliveries";               // private Supabase Storage bucket
-const MAX_FILE_BYTES = 50 * 1024 * 1024;   // Supabase free plan: 50 MB per file
+const MAX_FILE_BYTES = 50 * 1024 * 1024;   // single-request uploads (older Wrap versions)
+const PART_BYTES = 45 * 1024 * 1024;       // piece size for big files (Supabase: 50 MB per object)
 const MAX_ACTIVE_BYTES = 900 * 1024 * 1024; // Supabase free plan has 1 GB of storage in total
 const EXPIRY_HOURS = 48;                   // unused links expire after this…
 const MAX_EXPIRY_HOURS = 168;              // …or up to 7 days if the sender asks
@@ -35,6 +38,9 @@ export default {
         if (!user) return json({ error: "Please log in to Wrap again." }, 401);
 
         if (parts.length === 1 && request.method === "POST") return await createDelivery(request, env, user, url);
+        if (parts.length === 2 && parts[1] === "start" && request.method === "POST") return await startDelivery(request, env, user);
+        if (parts.length === 4 && parts[2] === "parts" && request.method === "PUT") return await uploadPart(parts[1], parts[3], request, env, user);
+        if (parts.length === 3 && parts[2] === "complete" && request.method === "POST") return await completeDelivery(parts[1], env, user, url);
         if (parts.length === 2 && request.method === "DELETE") return await cancelDelivery(parts[1], env, user);
       }
 
@@ -109,6 +115,106 @@ async function createDelivery(request, env, user, url) {
   return json({ id, link: `${url.origin}/d/${token}`, token, expires_at: expiresAt });
 }
 
+// Big files: start, send each piece, then complete.
+
+async function startDelivery(request, env, user) {
+  const body = await request.json().catch(() => ({}));
+  const fileName = cleanFileName(body.fileName);
+  const size = Math.floor(Number(body.size) || 0);
+  const projectId = typeof body.projectId === "string" ? body.projectId : null;
+  const contentType = typeof body.contentType === "string" ? body.contentType.slice(0, 200) : "application/octet-stream";
+  const asked = Number(body.expiryHours);
+  const expiryHours = Number.isFinite(asked) && asked >= 1 ? Math.min(Math.round(asked), MAX_EXPIRY_HOURS) : EXPIRY_HOURS;
+
+  if (size <= 0) return json({ error: "That file is empty." }, 400);
+  const used = await activeBytes(env, user);
+  if (used + size > MAX_ACTIVE_BYTES) {
+    const free = Math.max(0, MAX_ACTIVE_BYTES - used);
+    return json({ error: `Not enough space. This file is ${formatBytes(size)} and you have ${formatBytes(free)} free. Space frees up as clients download.` }, 413);
+  }
+
+  const id = crypto.randomUUID();
+  const token = randomToken();
+  const partCount = Math.ceil(size / PART_BYTES);
+  const expiresAt = new Date(Date.now() + expiryHours * 3600e3).toISOString();
+  await db(env, "deliveries", {
+    method: "POST",
+    body: JSON.stringify({
+      id,
+      user_id: user.id,
+      project_id: projectId,
+      file_name: fileName,
+      size_bytes: size,
+      r2_key: `${user.id}/${id}`,
+      part_count: partCount,
+      content_type: contentType,
+      token,
+      status: "uploading",
+      expires_at: expiresAt,
+    }),
+  });
+  return json({ id, partSize: PART_BYTES, partCount });
+}
+
+async function uploadPart(id, indexText, request, env, user) {
+  const row = await ownDelivery(id, env, user);
+  if (!row || row.status !== "uploading") return json({ error: "This upload isn't open any more." }, 404);
+  const index = Number(indexText);
+  if (!Number.isInteger(index) || index < 0 || index >= row.part_count) return json({ error: "Wrong piece number." }, 400);
+
+  const expected = Math.min(PART_BYTES, Number(row.size_bytes) - index * PART_BYTES);
+  const length = Number(request.headers.get("Content-Length")) || 0;
+  if (length !== expected) return json({ error: `Piece ${index + 1} should be ${expected} bytes, got ${length}.` }, 400);
+
+  const stored = await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}/${encodePath(partKey(row, index))}`, {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SECRET_KEY,
+      "Content-Type": "application/octet-stream",
+      "x-upsert": "true",   // a retried piece replaces the earlier attempt
+    },
+    body: request.body,
+  });
+  if (!stored.ok) return json({ error: `Couldn't store piece ${index + 1} (${stored.status}).` }, 502);
+  return json({ ok: true });
+}
+
+async function completeDelivery(id, env, user, url) {
+  const row = await ownDelivery(id, env, user);
+  if (!row || row.status !== "uploading") return json({ error: "This upload isn't open any more." }, 404);
+
+  // Check every piece arrived, at the right size.
+  const listed = await fetch(`${env.SUPABASE_URL}/storage/v1/object/list/${BUCKET}`, {
+    method: "POST",
+    headers: { apikey: env.SUPABASE_SECRET_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ prefix: row.r2_key, limit: 1000 }),
+  });
+  const objects = listed.ok ? await listed.json() : [];
+  const sizes = new Map(objects.map((o) => [o.name, Number(o.metadata && o.metadata.size)]));
+  for (let i = 0; i < row.part_count; i++) {
+    const expected = Math.min(PART_BYTES, Number(row.size_bytes) - i * PART_BYTES);
+    if (sizes.get(partName(i)) !== expected) {
+      return json({ error: `Piece ${i + 1} of ${row.part_count} is missing. Try sending the file again.` }, 409);
+    }
+  }
+
+  await db(env, `deliveries?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ status: "ready" }) });
+  return json({ id, link: `${url.origin}/d/${row.token}`, token: row.token, expires_at: row.expires_at });
+}
+
+function partName(index) {
+  return `part-${String(index).padStart(4, "0")}`;
+}
+
+function partKey(row, index) {
+  return `${row.r2_key}/${partName(index)}`;
+}
+
+async function activeBytes(env, user) {
+  const active = await db(env, `deliveries?user_id=eq.${user.id}&status=in.(uploading,ready,downloaded)&select=size_bytes`);
+  return active.reduce((sum, d) => sum + Number(d.size_bytes || 0), 0);
+}
+
 async function cancelDelivery(id, env, user) {
   const row = await ownDelivery(id, env, user);
   if (!row) return json({ error: "Not found." }, 404);
@@ -145,6 +251,9 @@ async function serveFile(token, request, env, ctx) {
   if (!isAvailable(row)) return new Response("This link has expired.", { status: 410 });
 
   const rangeHeader = request.headers.get("range");
+  countDownload(row, rangeHeader, env, ctx);
+  if (row.part_count > 0) return await servePieces(row, rangeHeader, env, ctx);
+
   const upstream = await fetch(`${env.SUPABASE_URL}/storage/v1/object/authenticated/${BUCKET}/${encodePath(row.r2_key)}`, {
     headers: {
       apikey: env.SUPABASE_SECRET_KEY,
@@ -161,19 +270,69 @@ async function serveFile(token, request, env, ctx) {
   headers.set("Accept-Ranges", "bytes");
   headers.set("Content-Disposition", `attachment; filename="${row.file_name.replace(/"/g, "")}"`);
 
-  // Count a download when it starts from the beginning of the file.
-  if (!rangeHeader || /^bytes=0-/.test(rangeHeader)) {
-    ctx.waitUntil(db(env, `deliveries?id=eq.${row.id}`, {
-      method: "PATCH",
-      body: JSON.stringify({
-        status: "downloaded",
-        downloaded_at: row.downloaded_at || new Date().toISOString(),
-        download_count: (row.download_count || 0) + 1,
-      }),
-    }));
-  }
-
   return new Response(upstream.body, { status: upstream.status, headers });
+}
+
+// Count a download when it starts from the beginning of the file.
+function countDownload(row, rangeHeader, env, ctx) {
+  if (rangeHeader && !/^bytes=0-/.test(rangeHeader)) return;
+  ctx.waitUntil(db(env, `deliveries?id=eq.${row.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      status: "downloaded",
+      downloaded_at: row.downloaded_at || new Date().toISOString(),
+      download_count: (row.download_count || 0) + 1,
+    }),
+  }));
+}
+
+// Stream the pieces back out, in order, as one file. Supports resuming (Range).
+async function servePieces(row, rangeHeader, env, ctx) {
+  const total = Number(row.size_bytes);
+  let start = 0;
+  let end = total - 1;
+  const match = rangeHeader && /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+  if (match) {
+    if (match[1] === "") {               // last N bytes
+      start = Math.max(0, total - Number(match[2]));
+    } else {
+      start = Number(match[1]);
+      if (match[2] !== "") end = Math.min(Number(match[2]), total - 1);
+    }
+    if (start > end || start >= total) {
+      return new Response("Range not satisfiable", { status: 416, headers: { "Content-Range": `bytes */${total}` } });
+    }
+  }
+  const length = end - start + 1;
+
+  const headers = new Headers({
+    "Content-Type": row.content_type || "application/octet-stream",
+    "Content-Length": String(length),
+    "Accept-Ranges": "bytes",
+    "Content-Disposition": `attachment; filename="${row.file_name.replace(/"/g, "")}"`,
+  });
+  if (match) headers.set("Content-Range", `bytes ${start}-${end}/${total}`);
+
+  const { readable, writable } = new FixedLengthStream(length);
+  const pump = async () => {
+    try {
+      for (let i = Math.floor(start / PART_BYTES); i <= Math.floor(end / PART_BYTES); i++) {
+        const partStart = i * PART_BYTES;
+        const from = Math.max(start, partStart) - partStart;
+        const to = Math.min(end, partStart + PART_BYTES - 1) - partStart;
+        const piece = await fetch(`${env.SUPABASE_URL}/storage/v1/object/authenticated/${BUCKET}/${encodePath(partKey(row, i))}`, {
+          headers: { apikey: env.SUPABASE_SECRET_KEY, Range: `bytes=${from}-${to}` },
+        });
+        if (!piece.ok && piece.status !== 206) throw new Error(`Piece ${i + 1} is missing`);
+        await piece.body.pipeTo(writable, { preventClose: true });
+      }
+      await writable.close();
+    } catch (error) {
+      await writable.abort(error).catch(() => {});
+    }
+  };
+  ctx.waitUntil(pump());
+  return new Response(readable, { status: match ? 206 : 200, headers });
 }
 
 function isAvailable(row) {
@@ -204,11 +363,14 @@ async function cleanup(env) {
 }
 
 async function removeFile(row, env) {
+  const names = row.part_count > 0
+    ? Array.from({ length: row.part_count }, (_, i) => partKey(row, i))
+    : [row.r2_key];
   try {
     await fetch(`${env.SUPABASE_URL}/storage/v1/object/${BUCKET}`, {
       method: "DELETE",
       headers: { apikey: env.SUPABASE_SECRET_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ prefixes: [row.r2_key] }),
+      body: JSON.stringify({ prefixes: names }),
     });
   } catch (_) {
     // Already gone.
