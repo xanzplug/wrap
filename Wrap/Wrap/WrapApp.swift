@@ -5,6 +5,7 @@ import SwiftData
 struct WrapApp: App {
     /// Who's signed in. Shared by the window and the menu bar.
     @State private var auth = AuthService()
+    @AppStorage(AppSettings.showMenuBarIcon) private var showMenuBarIcon = true
 
     init() {
         _ = AppUpdater.shared   // start the daily update check
@@ -24,7 +25,7 @@ struct WrapApp: App {
             }
         }
 
-        MenuBarExtra {
+        MenuBarExtra(isInserted: $showMenuBarIcon) {
             MenuBarContent()
                 .environment(auth)
         } label: {

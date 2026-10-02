@@ -37,6 +37,11 @@ struct ContentView: View {
         }
         .background(Color.wrapBackground)
         .frame(minWidth: 900, minHeight: 640)
+        .onAppear {
+            if UserDefaults.standard.string(forKey: AppSettings.startPage) == "projects" {
+                route = .projects
+            }
+        }
         .task(id: reminderKey) {
             ShootReminders.schedule(for: projects)
         }

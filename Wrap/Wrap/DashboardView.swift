@@ -135,7 +135,7 @@ struct DashboardView: View {
 
             ThinProgressBar(value: Double(used) / Double(limit))
 
-            HintText("Files your clients haven't downloaded yet. Once they do, this frees up. Links expire after 48 hours.")
+            HintText("Files your clients haven't downloaded yet. Once they do, this frees up. Links expire after \(AppSettings.expiryLabel(AppSettings.expiryHours)).")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

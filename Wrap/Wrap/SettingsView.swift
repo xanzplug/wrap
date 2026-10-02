@@ -1,10 +1,21 @@
 import SwiftUI
+import SwiftData
 
-/// The Settings page: account, reminders and app updates.
+/// The Settings page: general, account, delivery, reminders and updates.
 struct SettingsView: View {
     @Environment(AuthService.self) private var auth
     @AppStorage("displayName") private var displayName = WrapUser.defaultName
     @AppStorage(ShootReminders.enabledKey) private var remindersOn = true
+    @AppStorage(AppSettings.showMenuBarIcon) private var showMenuBarIcon = true
+    @AppStorage(AppSettings.startPage) private var startPage = "dashboard"
+    @AppStorage(AppSettings.linkExpiryHours) private var expiryHours = 48
+    @AppStorage(AppSettings.downloadAlerts) private var downloadAlerts = true
+    @Query(sort: \Project.createdAt) private var projects: [Project]
+    @Query(sort: \ShotTemplate.name) private var templates: [ShotTemplate]
+
+    @State private var opensAtLogin = AppSettings.opensAtLogin
+    @State private var loginError: String?
+    @State private var exportMessage: String?
 
     private var updater: AppUpdater { AppUpdater.shared }
 
@@ -13,6 +24,37 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 40) {
                 Heading("Settings")
                     .padding(.top, 24)
+
+                section("General") {
+                    row("Open Wrap at login",
+                        detail: loginError ?? "Keeps the menu bar icon and shoot reminders running.") {
+                        Toggle("", isOn: Binding(
+                            get: { opensAtLogin },
+                            set: { on in
+                                loginError = AppSettings.setOpensAtLogin(on)
+                                opensAtLogin = AppSettings.opensAtLogin
+                            }
+                        ))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                    }
+                    divider
+                    row("Show in menu bar", detail: "The Wrap icon at the top of your screen, for launching workspaces.") {
+                        Toggle("", isOn: $showMenuBarIcon)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                    }
+                    divider
+                    row("Start page", detail: "What Wrap shows when it opens.") {
+                        Picker("", selection: $startPage) {
+                            Text("Dashboard").tag("dashboard")
+                            Text("Projects").tag("projects")
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                    }
+                }
 
                 section("Account") {
                     row("Your name", detail: "Shown in the greeting on your dashboard.") {
@@ -33,6 +75,36 @@ struct SettingsView: View {
                             Task { await SyncEngine.shared.syncNow() }
                         }
                         .buttonStyle(.wrapSecondary)
+                    }
+                    divider
+                    row("Export my data",
+                        detail: exportMessage ?? "Save all your projects, shots, workspaces and templates as a backup file.") {
+                        Button("Export…") {
+                            exportMessage = DataExport.run(
+                                projects: projects, templates: templates,
+                                account: auth.account?.email ?? "")
+                        }
+                        .buttonStyle(.wrapSecondary)
+                    }
+                }
+
+                section("Delivery") {
+                    row("Links expire after",
+                        detail: "Unopened links are deleted after this. Downloaded files are deleted an hour after download either way.") {
+                        Picker("", selection: $expiryHours) {
+                            ForEach(AppSettings.expiryChoices, id: \.self) { hours in
+                                Text(AppSettings.expiryLabel(hours)).tag(hours)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                    }
+                    divider
+                    row("Download alerts", detail: "A notification when your client downloads a file.") {
+                        Toggle("", isOn: $downloadAlerts)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
                     }
                 }
 

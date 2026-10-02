@@ -83,7 +83,7 @@ struct DeliveriesView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Eyebrow("Deliveries")
                 Heading(active.isEmpty ? "Nothing waiting" : "\(active.count) link\(active.count == 1 ? "" : "s") out")
-                Text("Files delete themselves an hour after your client downloads them, or after 48 hours.")
+                Text("Files delete themselves an hour after your client downloads them, or after \(AppSettings.expiryLabel(AppSettings.expiryHours)).")
                     .font(.system(size: 12))
                     .foregroundStyle(Color.wrapSecondary)
             }
@@ -194,7 +194,7 @@ struct DeliveriesView: View {
     }
 
     private func expiry(_ delivery: Delivery) -> String {
-        guard let expires = delivery.expiresAt else { return "expires in 48 hours" }
+        guard let expires = delivery.expiresAt else { return "expires in \(AppSettings.expiryLabel(AppSettings.expiryHours))" }
         let hours = max(0, Int(expires.timeIntervalSinceNow / 3600))
         return hours >= 1 ? "expires in \(hours)h" : "expires soon"
     }

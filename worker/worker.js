@@ -2,7 +2,8 @@
 //
 // - Receives a file from the Wrap Mac app and stores it in Supabase Storage.
 // - Gives each file a share link: /d/<token> is a download page for the client.
-// - Deletes files an hour after the first download, or after 48 hours unused.
+// - Deletes files an hour after the first download, or when the link expires
+//   (48 hours by default; the app can ask for 1 to 168 hours).
 //
 // Settings (Cloudflare dashboard > Worker > Settings):
 //   Variables: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
@@ -12,7 +13,8 @@
 const BUCKET = "deliveries";               // private Supabase Storage bucket
 const MAX_FILE_BYTES = 50 * 1024 * 1024;   // Supabase free plan: 50 MB per file
 const MAX_ACTIVE_BYTES = 900 * 1024 * 1024; // Supabase free plan has 1 GB of storage in total
-const EXPIRY_HOURS = 48;                   // unused links expire after this
+const EXPIRY_HOURS = 48;                   // unused links expire after this…
+const MAX_EXPIRY_HOURS = 168;              // …or up to 7 days if the sender asks
 const GRACE_MINUTES_AFTER_DOWNLOAD = 60;   // time to retry a dropped download
 
 export default {
@@ -55,6 +57,10 @@ async function createDelivery(request, env, user, url) {
   const projectId = request.headers.get("X-Project-Id") || null;
   const size = Number(request.headers.get("Content-Length")) || 0;
   const contentType = request.headers.get("Content-Type") || "application/octet-stream";
+  const askedHours = Number(request.headers.get("X-Expiry-Hours"));
+  const expiryHours = Number.isFinite(askedHours) && askedHours >= 1
+    ? Math.min(Math.round(askedHours), MAX_EXPIRY_HOURS)
+    : EXPIRY_HOURS;
 
   if (size > MAX_FILE_BYTES) {
     return json({ error: `That file is ${formatBytes(size)}. Files can be up to 50 MB on the free plan.` }, 413);
@@ -84,7 +90,7 @@ async function createDelivery(request, env, user, url) {
     return json({ error: `Couldn't store the file (${stored.status}). ${await stored.text()}` }, 502);
   }
 
-  const expiresAt = new Date(Date.now() + EXPIRY_HOURS * 3600e3).toISOString();
+  const expiresAt = new Date(Date.now() + expiryHours * 3600e3).toISOString();
   await db(env, "deliveries", {
     method: "POST",
     body: JSON.stringify({
@@ -122,7 +128,7 @@ async function downloadPage(token, env) {
     return html(page(`
       <p class="eyebrow">Wrap delivery</p>
       <h1>This link has expired.</h1>
-      <p class="hint">Files are removed after they've been downloaded, or after 48 hours. Ask the sender for a new link.</p>`), 410);
+      <p class="hint">Files are removed after they've been downloaded, or when the link expires. Ask the sender for a new link.</p>`), 410);
   }
 
   const until = new Date(availableUntil(row)).toUTCString().replace(" GMT", " UTC");

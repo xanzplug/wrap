@@ -69,7 +69,8 @@ final class DeliveryService {
 
             // Tell the user when a client has just downloaded something.
             let before = Dictionary(deliveries.map { ($0.id, $0.status) }, uniquingKeysWith: { a, _ in a })
-            for delivery in fresh where delivery.status == "downloaded" && before[delivery.id] == "ready" {
+            for delivery in fresh where AppSettings.downloadAlertsOn
+                && delivery.status == "downloaded" && before[delivery.id] == "ready" {
                 notify(title: "Your client downloaded it", body: delivery.fileName)
             }
             deliveries = fresh
@@ -145,6 +146,7 @@ final class DeliveryService {
         request.setValue(fileURL.lastPathComponent.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "file",
                          forHTTPHeaderField: "X-File-Name")
         request.setValue(projectID, forHTTPHeaderField: "X-Project-Id")
+        request.setValue(String(AppSettings.expiryHours), forHTTPHeaderField: "X-Expiry-Hours")
 
         let tracker = UploadTracker { [weak self] fraction in
             Task { @MainActor in self?.update(progressID) { $0.fraction = fraction } }
