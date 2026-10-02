@@ -13,6 +13,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var route: Route = .dashboard
+    @State private var searchRequest = false
 
     private var activeProjects: [Project] { projects.filter { !$0.isWrapped } }
 
@@ -21,6 +22,10 @@ struct ContentView: View {
             TopBar(
                 status: statusText,
                 onProjects: { route = .projects },
+                onSearch: {
+                    route = .projects
+                    searchRequest = true
+                },
                 onNewProject: { createProject(named: "") }
             )
             Rectangle().fill(Color.wrapBorder).frame(height: 1)
@@ -30,6 +35,19 @@ struct ContentView: View {
         }
         .background(Color.wrapBackground)
         .frame(minWidth: 900, minHeight: 640)
+        .task(id: reminderKey) {
+            ShootReminders.schedule(for: projects)
+        }
+    }
+
+    /// Changes whenever a shoot date, wrap state or shot count changes,
+    /// so the reminders are rescheduled.
+    private var reminderKey: String {
+        projects.map { project in
+            let shoot = project.shootDate.map { String(Int($0.timeIntervalSince1970)) } ?? "-"
+            let left = project.shots.filter { !$0.isDone }.count
+            return "\(project.remoteID)|\(project.displayName)|\(shoot)|\(project.isWrapped)|\(left)"
+        }.joined(separator: ",")
     }
 
     // MARK: Pages
@@ -39,7 +57,8 @@ struct ContentView: View {
         case .dashboard:
             DashboardView(projects: projects, open: open, create: createProject)
         case .projects:
-            ProjectsListView(projects: projects, open: open, create: createProject, delete: delete)
+            ProjectsListView(projects: projects, open: open, create: createProject, delete: delete,
+                             searchRequest: $searchRequest)
         case .project(let id):
             if let project = projects.first(where: { $0.persistentModelID == id }) {
                 ProjectPage(project: project, back: { route = .dashboard }, delete: { delete(project) })
@@ -103,6 +122,7 @@ struct TopBar: View {
     @Environment(AuthService.self) private var auth
     let status: String
     let onProjects: () -> Void
+    let onSearch: () -> Void
     let onNewProject: () -> Void
 
     var body: some View {
@@ -122,6 +142,10 @@ struct TopBar: View {
                 .foregroundStyle(Color.wrapSecondary)
                 .lineLimit(1)
             Spacer()
+            Button("Search", systemImage: "magnifyingglass", action: onSearch)
+                .buttonStyle(.wrapSecondary)
+                .keyboardShortcut("f", modifiers: .command)
+                .help("Search projects (⌘F)")
             Button("Projects", action: onProjects).buttonStyle(.wrapSecondary)
             Button("New project", action: onNewProject).buttonStyle(.wrapSecondary)
             Button("Quit") { NSApp.terminate(nil) }.buttonStyle(.wrapSecondary)
@@ -188,7 +212,7 @@ struct TopBar: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: [Project.self, Shot.self, WorkspaceItem.self], inMemory: true)
+        .modelContainer(for: [Project.self, Shot.self, WorkspaceItem.self, ShotTemplate.self], inMemory: true)
         .environment(AuthService())
         .preferredColorScheme(.dark)
 }

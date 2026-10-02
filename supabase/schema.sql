@@ -74,3 +74,6 @@ create policy "Own shots" on public.shots for all to authenticated
 drop policy if exists "Own workspace items" on public.workspace_items;
 create policy "Own workspace items" on public.workspace_items for all to authenticated
   using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+-- Added later: when each project's shoot happens (optional).
+alter table public.projects add column if not exists shoot_date timestamptz;

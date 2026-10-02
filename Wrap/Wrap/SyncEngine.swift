@@ -112,6 +112,7 @@ final class SyncEngine {
                 "client_name": project.clientName,
                 "is_wrapped": project.isWrapped,
                 "created_at": Self.isoFormatter.string(from: project.createdAt),
+                "shoot_date": Self.jsonDate(project.shootDate),
                 "deleted": false,
             ] }
             try await upsert(.projects, rows)
@@ -192,6 +193,7 @@ final class SyncEngine {
             let name = row["name"] as? String ?? ""
             let client = row["client_name"] as? String ?? ""
             let wrapped = row["is_wrapped"] as? Bool ?? false
+            let shoot = Self.parseDate(row["shoot_date"] as? String)
 
             if let local = byID[rid] {
                 if deleted {
@@ -199,17 +201,19 @@ final class SyncEngine {
                     byID[rid] = nil
                     continue
                 }
-                let incoming = [name, client, String(wrapped)].joined(separator: "\u{1F}")
+                let incoming = Project.snapshot(name: name, client: client, wrapped: wrapped, shootDate: shoot)
                 // Unsent edits here win; they'll upload on the next sync.
                 if local.snapshot != local.syncedSnapshot && local.snapshot != incoming { continue }
                 local.name = name
                 local.clientName = client
                 local.isWrapped = wrapped
+                local.shootDate = shoot
                 local.syncedSnapshot = local.snapshot
             } else if !deleted {
                 let created = Self.parseDate(row["created_at"] as? String) ?? Date()
                 let project = Project(name: name, clientName: client, createdAt: created, isWrapped: wrapped)
                 project.remoteID = rid
+                project.shootDate = shoot
                 context.insert(project)
                 project.syncedSnapshot = project.snapshot
                 byID[rid] = project
@@ -396,6 +400,12 @@ final class SyncEngine {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
+
+    /// A date for the server, or JSON null when there isn't one.
+    private static func jsonDate(_ date: Date?) -> Any {
+        guard let date else { return NSNull() }
+        return isoFormatter.string(from: date)
+    }
 
     private static func parseDate(_ string: String?) -> Date? {
         guard var string else { return nil }

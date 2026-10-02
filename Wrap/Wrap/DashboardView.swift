@@ -13,12 +13,17 @@ struct DashboardView: View {
     @State private var showWorkspaces = true
     @State private var editingName = false
     @State private var showLinks = true
+    @State private var showShoots = true
 
     private var active: [Project] { projects.filter { !$0.isWrapped } }
     private var allShots: [Shot] { active.flatMap(\.shots) }
     private var doneShots: Int { allShots.filter(\.isDone).count }
     private var withWorkspace: [Project] { active.filter { !$0.workspaceItems.isEmpty } }
     private var trimmedName: String { newName.trimmingCharacters(in: .whitespaces) }
+    private var upcoming: [Project] {
+        projects.filter { $0.upcomingShoot != nil }
+            .sorted { $0.upcomingShoot! < $1.upcomingShoot! }
+    }
 
     var body: some View {
         ScrollView {
@@ -30,6 +35,8 @@ struct DashboardView: View {
                     storage
                 }
                 .padding(.top, 56)
+                upcomingShoots
+                    .padding(.top, 64)
                 HStack(alignment: .top, spacing: 64) {
                     projectsColumn
                     workspacesColumn
@@ -154,6 +161,27 @@ struct DashboardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // MARK: Shoots
+
+    private var upcomingShoots: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            CollapsibleHeader(title: "Upcoming shoots", count: upcoming.count, isOpen: $showShoots)
+
+            if showShoots {
+                if upcoming.isEmpty {
+                    HintText("No shoots scheduled. Open a project and press Set shoot date. Wrap reminds you the evening before and 2 hours before.")
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(upcoming) { project in
+                            ShootRow(project: project) { open(project) }
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private func project(for delivery: Delivery) -> Project? {
         projects.first { $0.remoteID.uuidString.lowercased() == delivery.projectID }
     }
@@ -253,8 +281,64 @@ struct ProjectRow: View {
 
     private var shotSummary: String {
         let total = project.shots.count
-        guard total > 0 else { return "no shots" }
-        return "\(project.shots.filter(\.isDone).count)/\(total) shots"
+        let shots = total > 0 ? "\(project.shots.filter(\.isDone).count)/\(total) shots" : "no shots"
+        guard let shoot = project.upcomingShoot else { return shots }
+        return "\(ShootReminders.relativeDay(shoot)) · \(shots)"
+    }
+}
+
+/// One scheduled shoot: when, which project, shots left.
+struct ShootRow: View {
+    let project: Project
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 16) {
+                if let shoot = project.upcomingShoot {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(ShootReminders.relativeDay(shoot))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.white)
+                        Text(shoot.formatted(date: .omitted, time: .shortened))
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(Color.wrapSecondary)
+                    }
+                    .frame(width: 120, alignment: .leading)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(project.displayName)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.white)
+                    if !project.clientName.isEmpty {
+                        Text(project.clientName)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.wrapSecondary)
+                    }
+                }
+                Spacer()
+                Text(shotsLeft)
+                    .font(.system(size: 11, design: .monospaced))
+                    .foregroundStyle(Color.wrapSecondary)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.wrapSecondary)
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(hovering ? 0.05 : 0)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+    }
+
+    private var shotsLeft: String {
+        let total = project.shots.count
+        guard total > 0 else { return "no shot list yet" }
+        let left = project.shots.filter { !$0.isDone }.count
+        return left == 0 ? "all \(total) shot" : "\(left) of \(total) to shoot"
     }
 }
 

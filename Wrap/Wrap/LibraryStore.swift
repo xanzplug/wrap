@@ -27,20 +27,33 @@ enum LibraryStore {
             removeStoreFiles(at: storeURL)
             container = (try? open(storeURL)) ?? inMemoryFallback()
         }
+        addStarterTemplatesIfNeeded(to: container, accountID: accountID)
         containers[accountID] = container
         return container
     }
 
+    /// Give each account a few shot list templates the first time.
+    private static func addStarterTemplatesIfNeeded(to container: ModelContainer, accountID: String) {
+        let key = "starterTemplatesAdded.\(accountID)"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        let context = container.mainContext
+        for template in ShotTemplate.makeStarters() {
+            context.insert(template)
+        }
+        try? context.save()
+        UserDefaults.standard.set(true, forKey: key)
+    }
+
     private static func open(_ url: URL) throws -> ModelContainer {
         try ModelContainer(
-            for: Project.self, Shot.self, WorkspaceItem.self,
+            for: Project.self, Shot.self, WorkspaceItem.self, ShotTemplate.self,
             configurations: ModelConfiguration(url: url)
         )
     }
 
     private static func inMemoryFallback() -> ModelContainer {
         try! ModelContainer(
-            for: Project.self, Shot.self, WorkspaceItem.self,
+            for: Project.self, Shot.self, WorkspaceItem.self, ShotTemplate.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
     }

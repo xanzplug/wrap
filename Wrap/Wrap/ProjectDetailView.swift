@@ -42,6 +42,9 @@ struct ProjectDetailView: View {
                 TextField("Client", text: $project.clientName, prompt: Text("Optional"))
                 Toggle("Wrapped", isOn: $project.isWrapped)
             }
+            Section("Shoot day") {
+                ShootDateEditor(project: project)
+            }
 
         }
         .formStyle(.grouped)

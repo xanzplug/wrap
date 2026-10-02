@@ -5,8 +5,12 @@ import SwiftData
 struct ShotsView: View {
     @Environment(\.modelContext) private var context
     let project: Project
+    @Query(sort: \ShotTemplate.name) private var templates: [ShotTemplate]
 
     @State private var newShotTitle = ""
+    @State private var savingTemplate = false
+    @State private var templateName = ""
+    @State private var savedNote: String?
     @State private var selectedShotID: PersistentIdentifier?
     @State private var showDetails = false
 
@@ -34,6 +38,9 @@ struct ShotsView: View {
                 if let shot = selectedShot { delete(shot) }
             }
             .scrollContentBackground(.hidden)
+            .overlay {
+                if shots.isEmpty { emptyState }
+            }
 
             HStack {
                 Image(systemName: "plus.circle")
@@ -60,6 +67,95 @@ struct ShotsView: View {
         .onChange(of: selectedShotID) { _, newValue in
             if newValue != nil { showDetails = true }
         }
+        .alert("Save as template", isPresented: $savingTemplate) {
+            TextField("Template name", text: $templateName)
+            Button("Save", action: saveTemplate)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Saves these \(shots.count) shots, with their outfits, locations and notes, so you can reuse them on new projects.")
+        }
+    }
+
+    // MARK: Templates
+
+    private var templatesMenu: some View {
+        Menu {
+            if !templates.isEmpty {
+                Section("Add shots from") {
+                    ForEach(templates) { template in
+                        Button("\(template.name) (\(template.items.count))") {
+                            template.addShots(to: project, in: context)
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button("Save This List as a Template…") {
+                templateName = project.displayName
+                savingTemplate = true
+            }
+            .disabled(shots.isEmpty)
+            if !templates.isEmpty {
+                Menu("Delete a Template") {
+                    ForEach(templates) { template in
+                        Button(template.name, role: .destructive) {
+                            context.delete(template)
+                            try? context.save()
+                        }
+                    }
+                }
+            }
+        } label: {
+            Label(savedNote ?? "Templates", systemImage: "square.stack")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(Color.white.opacity(0.03)))
+                .overlay(Capsule().strokeBorder(Color.wrapBorder))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+
+    /// Shown in place of the empty list: start from a template, or type below.
+    private var emptyState: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "camera")
+                .font(.system(size: 26))
+                .foregroundStyle(Color.wrapSecondary)
+            Text("Start your shot list")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(.white)
+            if templates.isEmpty {
+                HintText("Type your first shot in the box below.")
+            } else {
+                HintText("Start from a template, or type your first shot below.")
+                HStack(spacing: 8) {
+                    ForEach(templates.prefix(4)) { template in
+                        Button(template.name) {
+                            template.addShots(to: project, in: context)
+                        }
+                        .buttonStyle(.wrapSecondary)
+                    }
+                }
+            }
+        }
+        .multilineTextAlignment(.center)
+        .padding(32)
+    }
+
+    private func saveTemplate() {
+        let name = templateName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, !shots.isEmpty else { return }
+        context.insert(ShotTemplate(name: name, from: project))
+        try? context.save()
+        savedNote = "Saved"
+        Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            savedNote = nil
+        }
     }
 
     private var header: some View {
@@ -73,6 +169,7 @@ struct ShotsView: View {
                         .font(.system(size: 12, design: .monospaced))
                         .foregroundStyle(Color.wrapSecondary)
                 }
+                templatesMenu
                 Button(showDetails ? "Hide details" : "Details", systemImage: "sidebar.right") {
                     showDetails.toggle()
                 }
