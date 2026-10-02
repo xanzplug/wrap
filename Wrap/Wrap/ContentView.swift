@@ -5,6 +5,7 @@ import SwiftData
 enum Route: Hashable {
     case dashboard
     case projects
+    case settings
     case project(PersistentIdentifier)
 }
 
@@ -14,6 +15,7 @@ struct ContentView: View {
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var route: Route = .dashboard
     @State private var searchRequest = false
+    @AppStorage(ShootReminders.enabledKey) private var remindersOn = true
 
     private var activeProjects: [Project] { projects.filter { !$0.isWrapped } }
 
@@ -46,7 +48,7 @@ struct ContentView: View {
         projects.map { project in
             let shoot = project.shootDate.map { String(Int($0.timeIntervalSince1970)) } ?? "-"
             let left = project.shots.filter { !$0.isDone }.count
-            return "\(project.remoteID)|\(project.displayName)|\(shoot)|\(project.isWrapped)|\(left)"
+            return "\(remindersOn)|\(project.remoteID)|\(project.displayName)|\(shoot)|\(project.isWrapped)|\(left)"
         }.joined(separator: ",")
     }
 
@@ -56,6 +58,8 @@ struct ContentView: View {
         switch route {
         case .dashboard:
             DashboardView(projects: projects, open: open, create: createProject)
+        case .settings:
+            SettingsView()
         case .projects:
             ProjectsListView(projects: projects, open: open, create: createProject, delete: delete,
                              searchRequest: $searchRequest)
@@ -71,11 +75,19 @@ struct ContentView: View {
     private var pageTabs: some View {
         HStack(spacing: 28) {
             tab("Dashboard", isOn: route == .dashboard) { route = .dashboard }
-            tab("Projects", isOn: route != .dashboard) { route = .projects }
+            tab("Projects", isOn: isProjectsRoute) { route = .projects }
+            tab("Settings", isOn: route == .settings) { route = .settings }
             Spacer()
         }
         .padding(.horizontal, 48)
         .padding(.vertical, 16)
+    }
+
+    private var isProjectsRoute: Bool {
+        switch route {
+        case .projects, .project: true
+        default: false
+        }
     }
 
     private func tab(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
@@ -187,8 +199,6 @@ struct TopBar: View {
             Button("Sync Now") {
                 Task { await SyncEngine.shared.syncNow() }
             }
-            CheckForUpdatesButton()
-            Text(AppUpdater.versionText)
             Divider()
             Button("Sign Out") {
                 Task { await auth.signOut() }

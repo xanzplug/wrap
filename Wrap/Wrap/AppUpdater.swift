@@ -27,6 +27,22 @@ final class AppUpdater {
         controller.checkForUpdates(nil)
     }
 
+    /// Check quietly once a day.
+    var checksAutomatically: Bool {
+        get {
+            access(keyPath: \.checksAutomatically)
+            return controller.updater.automaticallyChecksForUpdates
+        }
+        set {
+            withMutation(keyPath: \.checksAutomatically) {
+                controller.updater.automaticallyChecksForUpdates = newValue
+            }
+        }
+    }
+
+    /// When Wrap last looked for a new version.
+    var lastChecked: Date? { controller.updater.lastUpdateCheckDate }
+
     /// e.g. "Version 1.1 (2)"
     static var versionText: String {
         let info = Bundle.main.infoDictionary

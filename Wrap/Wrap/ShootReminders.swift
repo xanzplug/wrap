@@ -5,6 +5,8 @@ import UserNotifications
 /// the evening before (6 PM) and 2 hours before it starts.
 enum ShootReminders {
     private static let prefix = "shoot-"
+    /// The on/off switch in Settings.
+    static let enabledKey = "shootRemindersOn"
 
     /// One reminder, worked out on the main thread before scheduling.
     private struct Reminder {
@@ -16,7 +18,8 @@ enum ShootReminders {
 
     /// Replace all shoot reminders with ones for these projects.
     static func schedule(for projects: [Project]) {
-        let reminders = makeReminders(for: projects)
+        let enabled = UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true
+        let reminders = enabled ? makeReminders(for: projects) : []
         let center = UNUserNotificationCenter.current()
         if !reminders.isEmpty {
             center.requestAuthorization(options: [.alert, .sound]) { _, _ in }

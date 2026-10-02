@@ -53,7 +53,6 @@ struct MenuBarContent: View {
         }
 
         Divider()
-        CheckForUpdatesButton()
         Button("Quit Wrap") {
             NSApp.terminate(nil)
         }
