@@ -6,6 +6,10 @@ struct WrapApp: App {
     /// Who's signed in. Shared by the window and the menu bar.
     @State private var auth = AuthService()
 
+    init() {
+        _ = AppUpdater.shared   // start the daily update check
+    }
+
     var body: some Scene {
         Window("Wrap", id: "main") {
             RootView()
@@ -14,6 +18,11 @@ struct WrapApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 1180, height: 820)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                CheckForUpdatesButton()
+            }
+        }
 
         MenuBarExtra {
             MenuBarContent()
@@ -44,10 +53,21 @@ struct MenuBarContent: View {
         }
 
         Divider()
+        CheckForUpdatesButton()
         Button("Quit Wrap") {
             NSApp.terminate(nil)
         }
         .keyboardShortcut("q")
+    }
+}
+
+/// "Check for Updates…", greyed out while a check is running.
+struct CheckForUpdatesButton: View {
+    var body: some View {
+        Button("Check for Updates…") {
+            AppUpdater.shared.checkForUpdates()
+        }
+        .disabled(!AppUpdater.shared.canCheck)
     }
 }
 

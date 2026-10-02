@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Where Wrap looks for new versions (see updates/appcast.xml in the repo). -->
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/xanzplug/wrap/main/updates/appcast.xml</string>
+	<!-- Updates must be signed with the matching private key, so nobody can push a fake one. -->
+	<key>SUPublicEDKey</key>
+	<string>J3igUdLiUoK3zZKbvzqFFWVKgNw2/Fse+YE0nNyoxZQ=</string>
+	<!-- Check once a day in the background. -->
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>86400</integer>
+</dict>
+</plist>

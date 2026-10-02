@@ -187,6 +187,8 @@ struct TopBar: View {
             Button("Sync Now") {
                 Task { await SyncEngine.shared.syncNow() }
             }
+            CheckForUpdatesButton()
+            Text(AppUpdater.versionText)
             Divider()
             Button("Sign Out") {
                 Task { await auth.signOut() }
