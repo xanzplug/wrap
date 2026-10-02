@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Wrap</title>
+    <link>https://github.com/xanzplug/wrap</link>
+    <description>New versions of Wrap.</description>
+    <language>en</language>
+    <item>
+      <title>Version 1.1</title>
+      <pubDate>Fri, 02 Oct 2026 23:29:00 +0000</pubDate>
+      <sparkle:version>2</sparkle:version>
+      <sparkle:shortVersionString>1.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.2</sparkle:minimumSystemVersion>
+      <description><![CDATA[<ul><li>Shoot dates with reminders, and an Upcoming shoots list on the dashboard</li><li>Shot list templates</li><li>Search projects, clients and shots (⌘F)</li><li>New Settings page: open at login, menu bar icon, start page, link expiry, download alerts, export your data</li><li>Check for Updates</li></ul>]]></description>
+      <enclosure url="https://raw.githubusercontent.com/xanzplug/wrap/main/updates/Wrap-1.1.zip" length="2045456" type="application/octet-stream" sparkle:edSignature="0zciBcTenH773imVlcK4bQin1w/PKSPFCsr2o4EP0izXOgTeu53jRDqpl7KDnveegLpkVms34YXPVvf8xyyIAQ=="/>
+    </item>
+  </channel>
+</rss>
