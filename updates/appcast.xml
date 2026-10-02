@@ -6,6 +6,15 @@
     <description>New versions of Wrap.</description>
     <language>en</language>
     <item>
+      <title>Version 1.2</title>
+      <pubDate>Fri, 02 Oct 2026 23:45:46 +0000</pubDate>
+      <sparkle:version>3</sparkle:version>
+      <sparkle:shortVersionString>1.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.2</sparkle:minimumSystemVersion>
+      <description><![CDATA[<ul><li>Send much bigger files: anything up to your free delivery space (900 MB), sent in pieces that retry by themselves if your connection drops</li></ul>]]></description>
+      <enclosure url="https://raw.githubusercontent.com/xanzplug/wrap/main/updates/Wrap-1.2.zip" length="2056214" type="application/octet-stream" sparkle:edSignature="IvLRuwPi5uPWcF4OeZwVZ+/3aTab3cxmvwqmPiEoS5M8dmPyhyoK4izDr++UGW6br+UbcwZslwiwZ5TPVDpmBw=="/>
+    </item>
+    <item>
       <title>Version 1.1</title>
       <pubDate>Fri, 02 Oct 2026 23:29:00 +0000</pubDate>
       <sparkle:version>2</sparkle:version>
