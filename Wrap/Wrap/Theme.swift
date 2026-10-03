@@ -11,6 +11,51 @@ extension Color {
     static let wrapBorder = Color.white.opacity(0.09)
     /// Quiet text: labels, captions, counts.
     static let wrapSecondary = Color.white.opacity(0.55)
+    /// A soft blue, used sparingly: glows, the selected tab, hover outlines.
+    static let wrapAccent = Color(red: 0.45, green: 0.64, blue: 1.0)
+}
+
+/// Big, soft, blurred light drifting slowly in the background,
+/// mostly white-grey with a slight blue glow. Used behind the dashboard hero.
+struct HeroGlow: View {
+    @State private var drift = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            ZStack {
+                Ellipse()
+                    .fill(Color.white.opacity(0.22))
+                    .frame(width: w * 0.55, height: 360)
+                    .offset(x: drift ? -w * 0.08 : -w * 0.02, y: drift ? -40 : -10)
+                Ellipse()
+                    .fill(Color.white.opacity(0.42))
+                    .frame(width: w * 0.5, height: 200)
+                    .offset(x: drift ? w * 0.34 : w * 0.28, y: drift ? 150 : 175)
+                Ellipse()
+                    .fill(Color.wrapAccent.opacity(0.34))
+                    .frame(width: w * 0.45, height: 300)
+                    .offset(x: drift ? w * 0.18 : w * 0.24, y: drift ? -20 : 30)
+                Ellipse()
+                    .fill(Color.wrapAccent.opacity(0.14))
+                    .frame(width: w * 0.4, height: 260)
+                    .offset(x: drift ? -w * 0.3 : -w * 0.36, y: drift ? 190 : 160)
+            }
+            .frame(width: w, height: geo.size.height)
+            .blur(radius: 90)
+        }
+        .frame(height: 620)
+        // Fade into the page background at the bottom.
+        .mask(
+            LinearGradient(colors: [.white, .white, .clear], startPoint: .top, endPoint: .bottom)
+        )
+        .allowsHitTesting(false)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 14).repeatForever(autoreverses: true)) {
+                drift = true
+            }
+        }
+    }
 }
 
 /// White pill with black text, for the main action on a screen.
@@ -32,7 +77,7 @@ struct WrapPrimaryButtonStyle: ButtonStyle {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 7)
                 .background(Capsule().fill(Color.white))
-                .shadow(color: .white.opacity(hovering && isEnabled ? 0.28 : 0), radius: 8)
+                .shadow(color: Color.wrapAccent.opacity(hovering && isEnabled ? 0.55 : 0), radius: 10)
                 .scaleEffect(configuration.isPressed ? 0.97 : 1)
                 .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.35)
                 .onHover { hovering = $0 }
@@ -64,7 +109,7 @@ struct WrapSecondaryButtonStyle: ButtonStyle {
                 .padding(.vertical, 7)
                 .background(Capsule().fill(Color.white.opacity(
                     configuration.isPressed ? 0.12 : (lit ? 0.07 : 0.03))))
-                .overlay(Capsule().strokeBorder(lit ? Color.white.opacity(0.55) : Color.wrapBorder))
+                .overlay(Capsule().strokeBorder(lit ? Color.wrapAccent.opacity(0.7) : Color.wrapBorder))
                 .scaleEffect(configuration.isPressed ? 0.97 : 1)
                 .opacity(isEnabled ? 1 : 0.35)
                 .onHover { hovering = $0 }
@@ -79,7 +124,7 @@ extension View {
     func rowHover(_ hovering: Bool, cornerRadius: CGFloat = 8) -> some View {
         self
             .background(RoundedRectangle(cornerRadius: cornerRadius).fill(Color.white.opacity(hovering ? 0.05 : 0)))
-            .overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(Color.white.opacity(hovering ? 0.14 : 0)))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(Color.wrapAccent.opacity(hovering ? 0.3 : 0)))
             .animation(.easeOut(duration: 0.15), value: hovering)
     }
 }
@@ -136,7 +181,9 @@ struct ThinProgressBar: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(Color.white.opacity(0.1))
-                Capsule().fill(Color.white)
+                Capsule()
+                    .fill(LinearGradient(colors: [.white, Color.wrapAccent],
+                                         startPoint: .leading, endPoint: .trailing))
                     .frame(width: geo.size.width * min(max(value, 0), 1))
             }
         }

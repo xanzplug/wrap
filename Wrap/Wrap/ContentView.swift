@@ -94,7 +94,8 @@ struct ContentView: View {
     @ViewBuilder private var page: some View {
         switch route {
         case .dashboard:
-            DashboardView(projects: projects, open: open, create: createProject)
+            DashboardView(projects: projects, open: open, create: createProject,
+                          openProjectsPage: { route = .projects })
         case .settings:
             SettingsView()
         case .projects:
@@ -147,6 +148,14 @@ enum NavTab: String, CaseIterable, Identifiable {
     case projects = "Projects"
     case settings = "Settings"
     var id: String { rawValue }
+
+    var systemImage: String {
+        switch self {
+        case .dashboard: "square.grid.2x2"
+        case .projects: "folder"
+        case .settings: "gearshape"
+        }
+    }
 }
 
 /// A floating rounded bar: logo on the left, sections in the middle,
@@ -180,7 +189,7 @@ struct TopBar: View {
 
             HStack(spacing: 2) {
                 ForEach(NavTab.allCases) { tab in
-                    NavTabButton(title: tab.rawValue, isSelected: tab == selected,
+                    NavTabButton(title: tab.rawValue, systemImage: tab.systemImage, isSelected: tab == selected,
                                  namespace: tabHighlight) { select(tab) }
                 }
             }
@@ -215,7 +224,7 @@ struct TopBar: View {
         // Full width at the top of a page, easing into a small pill as you scroll.
         .containerRelativeFrame(.horizontal) { width, _ in
             let full = width - 32
-            let small = min(600, full)
+            let small = min(680, full)
             return full + (small - full) * eased
         }
         .background(
@@ -310,6 +319,7 @@ struct TopBar: View {
 /// with a soft pill that slides between sections.
 struct NavTabButton: View {
     let title: String
+    let systemImage: String
     let isSelected: Bool
     let namespace: Namespace.ID
     let action: () -> Void
@@ -317,15 +327,20 @@ struct NavTabButton: View {
 
     var body: some View {
         Button(action: action) {
-            Text(title)
+            HStack(spacing: 6) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 12, weight: .semibold))
+                Text(title)
+            }
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(isSelected || hovering ? Color.white : Color.white.opacity(0.5))
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 13)
                 .padding(.vertical, 8)
                 .background {
                     if isSelected {
                         Capsule()
-                            .fill(Color.white.opacity(0.07))
+                            .fill(Color.wrapAccent.opacity(0.16))
+                            .overlay(Capsule().strokeBorder(Color.wrapAccent.opacity(0.28)))
                             .matchedGeometryEffect(id: "selected", in: namespace)
                     }
                 }

@@ -6,6 +6,7 @@ struct DashboardView: View {
     let projects: [Project]
     let open: (Project) -> Void
     let create: (String) -> Void
+    var openProjectsPage: () -> Void = {}
 
     @AppStorage("displayName") private var displayName = WrapUser.defaultName
     @State private var newName = ""
@@ -35,7 +36,8 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 greeting
-                    .padding(.top, 32)
+                    .padding(.top, 110)
+                    .padding(.bottom, 70)
                 HStack(alignment: .top, spacing: 64) {
                     progress
                     storage
@@ -56,6 +58,11 @@ struct DashboardView: View {
             .padding(.bottom, 56)
             .frame(maxWidth: .infinity)
         }
+        .background(alignment: .top) {
+            // Soft drifting light behind the hero; the glass nav bar floats over it.
+            HeroGlow()
+                .ignoresSafeArea(edges: .top)
+        }
         .reportsScrollForNav()
         .task {
             await DeliveryService.shared.refresh()
@@ -70,34 +77,93 @@ struct DashboardView: View {
 
     // MARK: Sections
 
+    /// The hero: a big two-tone line with the Wrap logo, then two buttons.
     private var greeting: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 0) {
-                Text("Welcome back,")
+        VStack(spacing: 22) {
+            VStack(spacing: 2) {
+                HStack(spacing: 14) {
+                    Text("Welcome back")
+                    Image("WrapLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 30, height: 30)
+                        .padding(10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.white.opacity(0.08))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.12))
+                        )
+                    Text("\(displayName),")
+                }
+                .foregroundStyle(Color.white.opacity(0.62))
+                Text(heroLine)
                     .foregroundStyle(.white)
-                Text(displayName)
-                    .foregroundStyle(Color.wrapSecondary)
-                Text(statusLine)
-                    .font(.system(size: 14))
-                    .tracking(0)
-                    .foregroundStyle(Color.wrapSecondary)
-                    .padding(.top, 14)
             }
-            .font(.system(size: 46, weight: .medium))
-            .tracking(-1.4)
+            .font(.system(size: 52, weight: .bold))
+            .tracking(-2)
+            .multilineTextAlignment(.center)
+            .contextMenu {
+                Button("Change Name…") { editingName = true }
+            }
 
-            Spacer()
+            HStack(spacing: 10) {
+                Button {
+                    create("")
+                } label: {
+                    Label("New project", systemImage: "plus")
+                        .font(.system(size: 14, weight: .semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.wrapPrimary)
 
+                Button {
+                    openProjectsPage()
+                } label: {
+                    Label("Projects", systemImage: "folder")
+                        .font(.system(size: 14, weight: .semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.wrapSecondary)
+            }
+
+            Text(statusLine)
+                .font(.system(size: 13))
+                .foregroundStyle(Color.wrapSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .topTrailing) {
             Menu {
                 Button("Change Name…") { editingName = true }
             } label: {
                 Image(systemName: "ellipsis")
                     .foregroundStyle(Color.wrapSecondary)
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
+            .menuStyle(.button)
+            .buttonStyle(.plain)
             .fixedSize()
+            .offset(y: -60)
         }
+    }
+
+    /// The bold white second line of the hero.
+    private var heroLine: String {
+        if let next = upcoming.first, let date = next.upcomingShoot {
+            let day = ShootReminders.relativeDay(date)
+            switch day {
+            case "Today": return "you're shooting today."
+            case "Tomorrow": return "you're shooting tomorrow."
+            default:
+                return day.hasPrefix("In ") ? "next shoot \(day.lowercased())." : "next shoot \(day)."
+            }
+        }
+        return active.isEmpty ? "let's start something." : "let's wrap something."
     }
 
     private var progress: some View {
