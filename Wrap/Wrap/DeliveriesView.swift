@@ -53,6 +53,7 @@ struct DeliveriesView: View {
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .reportsScrollForNav()
         .background(Color.wrapBackground)
         .fileImporter(isPresented: $choosingFile, allowedContentTypes: [.item]) { result in
             if case .success(let url) = result {

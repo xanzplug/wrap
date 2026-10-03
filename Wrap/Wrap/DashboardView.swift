@@ -56,6 +56,7 @@ struct DashboardView: View {
             .padding(.bottom, 56)
             .frame(maxWidth: .infinity)
         }
+        .reportsScrollForNav()
         .task {
             await DeliveryService.shared.refresh()
         }

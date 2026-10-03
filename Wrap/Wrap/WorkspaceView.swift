@@ -34,6 +34,7 @@ struct WorkspaceView: View {
                 }
                 .onMove(perform: move)
             }
+            .reportsScrollForNav()
             .scrollContentBackground(.hidden)
             .overlay {
                 if items.isEmpty {

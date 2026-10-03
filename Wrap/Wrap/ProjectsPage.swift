@@ -71,6 +71,7 @@ struct ProjectsListView: View {
             .padding(.bottom, 56)
             .frame(maxWidth: .infinity)
         }
+        .reportsScrollForNav()
     }
 
     private var searchField: some View {

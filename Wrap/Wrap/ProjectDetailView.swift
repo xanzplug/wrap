@@ -47,6 +47,7 @@ struct ProjectDetailView: View {
             }
 
         }
+        .reportsScrollForNav()
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .background(Color.wrapBackground)

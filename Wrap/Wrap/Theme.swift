@@ -184,3 +184,31 @@ enum WrapUser {
         NSFullUserName().split(separator: " ").first.map(String.init) ?? "there"
     }
 }
+
+// MARK: - Nav bar that shrinks on scroll
+
+extension EnvironmentValues {
+    /// Called with true when the page has been scrolled down, false at the top.
+    @Entry var setNavCompact: (Bool) -> Void = { _ in }
+}
+
+extension View {
+    /// Tell the nav bar to shrink while this scroll view is scrolled down.
+    func reportsScrollForNav() -> some View {
+        modifier(ReportsScrollForNav())
+    }
+}
+
+private struct ReportsScrollForNav: ViewModifier {
+    @Environment(\.setNavCompact) private var setNavCompact
+
+    func body(content: Content) -> some View {
+        content
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top > 24
+            } action: { _, scrolled in
+                setNavCompact(scrolled)
+            }
+            .onAppear { setNavCompact(false) }
+    }
+}

@@ -15,11 +15,14 @@ struct ContentView: View {
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var route: Route = .dashboard
     @State private var searchRequest = false
+    /// True while the page is scrolled down: the nav bar shrinks to a small pill.
+    @State private var navCompact = false
     @AppStorage(ShootReminders.enabledKey) private var remindersOn = true
 
     var body: some View {
         VStack(spacing: 0) {
             TopBar(
+                compact: navCompact,
                 selected: selectedTab,
                 select: { tab in
                     withAnimation(.easeOut(duration: 0.18)) {
@@ -42,7 +45,12 @@ struct ContentView: View {
 
             page
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .transition(.opacity)
+                .environment(\.setNavCompact) { compact in
+                    guard compact != navCompact else { return }
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
+                        navCompact = compact
+                    }
+                }
         }
         .background(Color.wrapBackground)
         .frame(minWidth: 900, minHeight: 640)
@@ -130,6 +138,8 @@ enum NavTab: String, CaseIterable, Identifiable {
 /// New project and your account on the right.
 struct TopBar: View {
     @Environment(AuthService.self) private var auth
+    /// Small centered pill (scrolled down) or full width (at the top).
+    let compact: Bool
     let selected: NavTab
     let select: (NavTab) -> Void
     let onSearch: () -> Void
@@ -171,10 +181,13 @@ struct TopBar: View {
         .padding(.leading, 16)
         .padding(.trailing, 8)
         .frame(height: 54)
-        .frame(width: 700)   // a compact bar in the middle, not edge to edge
+        // Full width at the top of a page; a small pill in the middle once you scroll.
+        .containerRelativeFrame(.horizontal) { width, _ in
+            compact ? min(700, width - 32) : width - 32
+        }
         .background(
             Capsule(style: .continuous)
-                .fill(Color.white.opacity(0.035))
+                .fill(Color.white.opacity(compact ? 0.06 : 0.035))
         )
         .overlay(
             Capsule(style: .continuous)

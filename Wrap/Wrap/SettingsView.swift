@@ -142,6 +142,7 @@ struct SettingsView: View {
             .padding(.bottom, 56)
             .frame(maxWidth: .infinity)
         }
+        .reportsScrollForNav()
     }
 
     // MARK: Pieces

@@ -34,6 +34,7 @@ struct ShotsView: View {
                 }
                 .onMove(perform: move)
             }
+            .reportsScrollForNav()
             .onDeleteCommand {
                 if let shot = selectedShot { delete(shot) }
             }
