@@ -20,41 +20,53 @@ struct ContentView: View {
     @AppStorage(ShootReminders.enabledKey) private var remindersOn = true
 
     var body: some View {
-        VStack(spacing: 0) {
-            TopBar(
-                progress: navProgress,
-                selected: selectedTab,
-                select: { tab in
-                    withAnimation(.easeOut(duration: 0.18)) {
-                        switch tab {
-                        case .dashboard: route = .dashboard
-                        case .projects: route = .projects
-                        case .settings: route = .settings
-                        }
-                    }
-                },
-                onSearch: {
-                    route = .projects
-                    searchRequest = true
-                },
-                onNewProject: { createProject(named: "") }
-            )
-            .padding(.horizontal, 16)
-            .padding(.top, 38)      // room for the window's close/minimise buttons
-            .padding(.bottom, 8)
-
-            page
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .environment(\.setNavProgress) { progress in
-                    guard progress != navProgress else { return }
-                    // Every change glides a little, so mouse-wheel steps blend into
-                    // one continuous motion. A bigger jump (like a new page) glides longer.
-                    let jump = abs(progress - navProgress)
-                    withAnimation(.smooth(duration: jump > 0.3 ? 0.4 : 0.22)) {
-                        navProgress = progress
-                    }
+        // The page fills the window and scrolls *under* the nav bar,
+        // which floats on top as frosted glass.
+        page
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .environment(\.setNavProgress) { progress in
+                guard progress != navProgress else { return }
+                // Every change glides a little, so mouse-wheel steps blend into
+                // one continuous motion. A bigger jump (like a new page) glides longer.
+                let jump = abs(progress - navProgress)
+                withAnimation(.smooth(duration: jump > 0.3 ? 0.4 : 0.22)) {
+                    navProgress = progress
                 }
-        }
+            }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                TopBar(
+                    progress: navProgress,
+                    selected: selectedTab,
+                    select: { tab in
+                        withAnimation(.easeOut(duration: 0.18)) {
+                            switch tab {
+                            case .dashboard: route = .dashboard
+                            case .projects: route = .projects
+                            case .settings: route = .settings
+                            }
+                        }
+                    },
+                    onSearch: {
+                        route = .projects
+                        searchRequest = true
+                    },
+                    onNewProject: { createProject(named: "") }
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 38)      // room for the window's close/minimise buttons
+                .padding(.bottom, 8)
+                .frame(maxWidth: .infinity)
+                .background(alignment: .top) {
+                    // Content fades out under the window buttons instead of
+                    // running into them; it stays visible behind the glass.
+                    LinearGradient(
+                        colors: [Color.wrapBackground, Color.wrapBackground.opacity(0)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    .frame(height: 44)
+                    .allowsHitTesting(false)
+                }
+            }
         .background(Color.wrapBackground)
         .frame(minWidth: 900, minHeight: 640)
         .onAppear {
@@ -207,8 +219,17 @@ struct TopBar: View {
             return full + (small - full) * eased
         }
         .background(
+            // Frosted glass: whatever scrolls underneath shows through, blurred.
             Capsule(style: .continuous)
-                .fill(Color.white.opacity(0.035 + 0.03 * eased))
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    Capsule(style: .continuous)
+                        .fill(Color.black.opacity(0.35 - 0.1 * eased))
+                )
+                .overlay(
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.03 + 0.03 * eased))
+                )
         )
         .overlay(
             Capsule(style: .continuous)
