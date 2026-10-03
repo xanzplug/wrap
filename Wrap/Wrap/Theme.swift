@@ -204,7 +204,7 @@ private struct ReportsScrollForNav: ViewModifier {
     @Environment(\.setNavProgress) private var setNavProgress
 
     /// Points of scrolling it takes to go from full width to the small pill.
-    private let shrinkDistance: CGFloat = 120
+    private let shrinkDistance: CGFloat = 160
 
     func body(content: Content) -> some View {
         content

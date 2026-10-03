@@ -47,14 +47,11 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .environment(\.setNavProgress) { progress in
                     guard progress != navProgress else { return }
-                    if progress == 0 && navProgress > 0.3 {
-                        // Jumping back to the top (e.g. a new page): glide, don't snap.
-                        withAnimation(.smooth(duration: 0.35)) { navProgress = 0 }
-                    } else {
-                        // While scrolling, follow the finger exactly.
-                        var transaction = Transaction()
-                        transaction.disablesAnimations = true
-                        withTransaction(transaction) { navProgress = progress }
+                    // Every change glides a little, so mouse-wheel steps blend into
+                    // one continuous motion. A bigger jump (like a new page) glides longer.
+                    let jump = abs(progress - navProgress)
+                    withAnimation(.smooth(duration: jump > 0.3 ? 0.4 : 0.22)) {
+                        navProgress = progress
                     }
                 }
         }
@@ -180,9 +177,21 @@ struct TopBar: View {
             HStack(spacing: 8) {
                 CircleIconButton(systemImage: "magnifyingglass", help: "Search projects (⌘F)", action: onSearch)
                     .keyboardShortcut("f", modifiers: .command)
-                Button("New project", action: onNewProject)
-                    .buttonStyle(NavPrimaryButtonStyle())
-                    .keyboardShortcut("n", modifiers: .command)
+                Button(action: onNewProject) {
+                    // The words fold away as the bar shrinks, leaving a round +.
+                    HStack(spacing: 6 * (1 - labelFold)) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 13, weight: .bold))
+                        Text("New project")
+                            .fixedSize()
+                            .frame(width: 84 * (1 - labelFold), alignment: .leading)
+                            .clipped()
+                            .opacity(1 - labelFold)
+                    }
+                }
+                .buttonStyle(NavPrimaryButtonStyle(fold: labelFold))
+                .keyboardShortcut("n", modifiers: .command)
+                .help("New project (⌘N)")
                 accountMenu
             }
             .fixedSize()
@@ -194,7 +203,7 @@ struct TopBar: View {
         // Full width at the top of a page, easing into a small pill as you scroll.
         .containerRelativeFrame(.horizontal) { width, _ in
             let full = width - 32
-            let small = min(760, full)
+            let small = min(600, full)
             return full + (small - full) * eased
         }
         .background(
@@ -205,7 +214,12 @@ struct TopBar: View {
             Capsule(style: .continuous)
                 .strokeBorder(Color.white.opacity(0.08 + 0.04 * eased))
         )
-        .shadow(color: .black.opacity(0.25 + 0.3 * eased), radius: 14 + 12 * eased, y: 4 + 8 * eased)
+        .shadow(color: .black.opacity(0.2 + 0.35 * eased), radius: 20, y: 8)
+    }
+
+    /// How far "New project" has folded into a round + (0 = full words).
+    private var labelFold: CGFloat {
+        min(max((eased - 0.25) / 0.6, 0), 1)
     }
 
     /// Smoothstep: starts and ends gently, so the change feels soft.
@@ -307,14 +321,18 @@ struct NavTabButton: View {
 
 /// The big white button on the right of the nav bar.
 struct NavPrimaryButtonStyle: ButtonStyle {
+    /// 0 = "＋ New project" pill, 1 = a round + button.
+    var fold: CGFloat = 0
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(.black)
-            .padding(.horizontal, 16)
-            .frame(height: 38)
+            .padding(.horizontal, 16 - 5.5 * fold)
+            .frame(height: 34 + 4 * (1 - fold))
+            .frame(minWidth: 34)
             .background(
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                RoundedRectangle(cornerRadius: 13 + 4 * fold, style: .continuous)
                     .fill(Color.white.opacity(configuration.isPressed ? 0.8 : 1))
             )
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
