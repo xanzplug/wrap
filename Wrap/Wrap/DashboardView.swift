@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 
-/// The home page: greeting, shot progress, delivery space, projects, workspaces and links out.
 struct DashboardView: View {
     let projects: [Project]
     let open: (Project) -> Void
@@ -15,7 +14,6 @@ struct DashboardView: View {
     @State private var editingName = false
     @State private var showLinks = true
     @State private var showShoots = true
-    /// How far the page is scrolled, used to fade the hero glow away.
     @State private var scrollOffset: CGFloat = 0
 
     private var active: [Project] { projects.filter { !$0.isWrapped } }
@@ -61,8 +59,6 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity)
         }
         .background(alignment: .top) {
-            // Soft drifting light behind the hero; the glass nav bar floats over it.
-            // It fades out and slides up a little as you scroll down.
             HeroGlow()
                 .opacity(glowOpacity)
                 .offset(y: -min(scrollOffset, 400) * 0.35)
@@ -87,7 +83,6 @@ struct DashboardView: View {
 
     // MARK: Sections
 
-    /// The hero: a big two-tone line with the Wrap logo, then two buttons.
     private var greeting: some View {
         VStack(spacing: 22) {
             VStack(spacing: 2) {
@@ -162,15 +157,12 @@ struct DashboardView: View {
         }
     }
 
-    /// Fully visible at the top, gone after about 380 points of scrolling,
-    /// with a gentle ease so it doesn't fade in a straight line.
     private var glowOpacity: Double {
         let t = min(max(scrollOffset / 380, 0), 1)
         let eased = t * t * (3 - 2 * t)
         return 1 - eased
     }
 
-    /// The bold white second line of the hero.
     private var heroLine: String {
         if let next = upcoming.first, let date = next.upcomingShoot {
             let day = ShootReminders.relativeDay(date)
@@ -205,8 +197,6 @@ struct DashboardView: View {
 
     // MARK: Deliveries
 
-    /// Files still on the server: waiting for a client, or just downloaded
-    /// and about to be deleted.
     private var linksStillOut: [Delivery] {
         DeliveryService.shared.deliveries.filter(\.isActive)
     }
@@ -339,7 +329,6 @@ struct DashboardView: View {
     }
 }
 
-/// One project in a list: name, client, shot count.
 struct ProjectRow: View {
     let project: Project
     let action: () -> Void
@@ -383,7 +372,6 @@ struct ProjectRow: View {
     }
 }
 
-/// One scheduled shoot: when, which project, shots left.
 struct ShootRow: View {
     let project: Project
     let action: () -> Void
@@ -438,7 +426,6 @@ struct ShootRow: View {
     }
 }
 
-/// One workspace on the dashboard, with a Launch button.
 struct WorkspaceLaunchRow: View {
     let project: Project
     let open: () -> Void
@@ -479,7 +466,6 @@ struct WorkspaceLaunchRow: View {
     }
 }
 
-/// One file still out with a client: name, project, size, time left, Copy Link.
 struct LinkOutRow: View {
     let delivery: Delivery
     let project: Project?
@@ -538,4 +524,3 @@ struct LinkOutRow: View {
         return "\(size) · \(hours >= 1 ? "\(hours)h left" : "expiring")"
     }
 }
-

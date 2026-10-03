@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 
-/// The Settings page: general, account, delivery, reminders and updates.
 struct SettingsView: View {
     @Environment(AuthService.self) private var auth
     @AppStorage("displayName") private var displayName = WrapUser.defaultName

@@ -2,9 +2,6 @@ import Foundation
 import SwiftData
 import Observation
 
-/// Keeps this Mac's projects, shots and workspace items in step with the
-/// signed-in account on Supabase. Uploads local changes, then downloads
-/// anything changed on other Macs. Runs every 30 seconds and on demand.
 @Observable
 final class SyncEngine {
     static let shared = SyncEngine()
@@ -71,13 +68,12 @@ final class SyncEngine {
             try await pullChanges(context)
             try context.save()
             status = .synced(Date())
-            await DeliveryService.shared.refresh()   // spot client downloads
+            await DeliveryService.shared.refresh()
         } catch {
             status = .failed(error.localizedDescription)
         }
     }
 
-    /// Remember that something was deleted here, so it's deleted on other Macs too.
     func recordDeletion(_ table: Table, id: UUID) {
         guard let key = deletionsKey(table) else { return }
         var ids = UserDefaults.standard.stringArray(forKey: key) ?? []
@@ -95,7 +91,6 @@ final class SyncEngine {
             let list = ids.joined(separator: ",")
             _ = try await request("PATCH", "/rest/v1/\(table.rawValue)?id=in.(\(list))",
                                   body: ["deleted": true], prefer: "return=minimal")
-            // Keep any deletions recorded while we were uploading.
             let remaining = (UserDefaults.standard.stringArray(forKey: key) ?? []).filter { !ids.contains($0) }
             UserDefaults.standard.set(remaining, forKey: key)
         }
@@ -164,7 +159,6 @@ final class SyncEngine {
     // MARK: Download
 
     private func pullChanges(_ context: ModelContext) async throws {
-        // Projects first, so shots and items can find the project they belong to.
         for table in Table.allCases {
             var path = "/rest/v1/\(table.rawValue)?select=*&order=updated_at.asc"
             if let since = lastPull(table) {
@@ -202,7 +196,6 @@ final class SyncEngine {
                     continue
                 }
                 let incoming = Project.snapshot(name: name, client: client, wrapped: wrapped, shootDate: shoot)
-                // Unsent edits here win; they'll upload on the next sync.
                 if local.snapshot != local.syncedSnapshot && local.snapshot != incoming { continue }
                 local.name = name
                 local.clientName = client
@@ -293,7 +286,6 @@ final class SyncEngine {
 
     // MARK: IDs
 
-    /// Items made before sync existed can share the same ID. Give each its own.
     private func ensureUniqueIDs(_ context: ModelContext) throws {
         var seen = Set<UUID>()
         for project in try context.fetch(FetchDescriptor<Project>()) {
@@ -401,7 +393,6 @@ final class SyncEngine {
         return formatter
     }()
 
-    /// A date for the server, or JSON null when there isn't one.
     private static func jsonDate(_ date: Date?) -> Any {
         guard let date else { return NSNull() }
         return isoFormatter.string(from: date)
@@ -410,7 +401,6 @@ final class SyncEngine {
     private static func parseDate(_ string: String?) -> Date? {
         guard var string else { return nil }
         if let date = isoFormatter.date(from: string) { return date }
-        // The server sends up to 6 decimal places; trim to 3.
         if let dot = string.firstIndex(of: "."),
            let zone = string[dot...].firstIndex(where: { $0 == "+" || $0 == "-" || $0 == "Z" }) {
             let fraction = string[string.index(after: dot)..<zone]

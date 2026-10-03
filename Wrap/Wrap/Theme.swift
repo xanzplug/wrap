@@ -1,22 +1,13 @@
 import SwiftUI
 
-// Wrap's look: near-black, white type, soft grey borders, pill buttons.
-
 extension Color {
-    /// The window background.
     static let wrapBackground = Color(white: 0.04)
-    /// Cards and bars that sit on the background.
     static let wrapCard = Color(white: 0.075)
-    /// Thin outlines around cards and secondary buttons.
     static let wrapBorder = Color.white.opacity(0.09)
-    /// Quiet text: labels, captions, counts.
     static let wrapSecondary = Color.white.opacity(0.55)
-    /// A soft blue, used sparingly: glows, the selected tab, hover outlines.
     static let wrapAccent = Color(red: 0.45, green: 0.64, blue: 1.0)
 }
 
-/// Big, soft, blurred light drifting slowly in the background,
-/// mostly white-grey with a slight blue glow. Used behind the dashboard hero.
 struct HeroGlow: View {
     @State private var drift = false
 
@@ -45,7 +36,6 @@ struct HeroGlow: View {
             .blur(radius: 90)
         }
         .frame(height: 620)
-        // Fade into the page background at the bottom.
         .mask(
             LinearGradient(colors: [.white, .white, .clear], startPoint: .top, endPoint: .bottom)
         )
@@ -58,8 +48,6 @@ struct HeroGlow: View {
     }
 }
 
-/// White pill with black text, for the main action on a screen.
-/// Glows softly when the pointer is over it.
 struct WrapPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         PrimaryPill(configuration: configuration)
@@ -87,8 +75,6 @@ struct WrapPrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// Dark pill with a thin outline, for everything else.
-/// The outline turns white when the pointer is over it.
 struct WrapSecondaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         SecondaryPill(configuration: configuration)
@@ -120,7 +106,6 @@ struct WrapSecondaryButtonStyle: ButtonStyle {
 }
 
 extension View {
-    /// The hover look for list rows: a soft fill and a faint white outline.
     func rowHover(_ hovering: Bool, cornerRadius: CGFloat = 8) -> some View {
         self
             .background(RoundedRectangle(cornerRadius: cornerRadius).fill(Color.white.opacity(hovering ? 0.05 : 0)))
@@ -138,7 +123,6 @@ extension ButtonStyle where Self == WrapSecondaryButtonStyle {
 }
 
 extension View {
-    /// A dark rounded card with a thin border.
     func wrapCard(padding: CGFloat = 16) -> some View {
         self
             .padding(padding)
@@ -147,7 +131,6 @@ extension View {
     }
 }
 
-/// Small grey uppercase label above a heading, e.g. "SHOT LIST".
 struct Eyebrow: View {
     let text: String
     init(_ text: String) { self.text = text }
@@ -160,7 +143,6 @@ struct Eyebrow: View {
     }
 }
 
-/// A large heading with tight letter spacing.
 struct Heading: View {
     let text: String
     init(_ text: String) { self.text = text }
@@ -173,9 +155,8 @@ struct Heading: View {
     }
 }
 
-/// A thin white progress line on a faint track.
 struct ThinProgressBar: View {
-    let value: Double   // 0...1
+    let value: Double
 
     var body: some View {
         GeometryReader { geo in
@@ -194,7 +175,6 @@ struct ThinProgressBar: View {
 
 // MARK: - Dashboard pieces
 
-/// A small grey pill with a number, e.g. next to "Projects".
 struct CountBadge: View {
     let count: Int
 
@@ -208,7 +188,6 @@ struct CountBadge: View {
     }
 }
 
-/// A thin line, a chevron, a big title and a count. Click to fold the section.
 struct CollapsibleHeader: View {
     let title: String
     let count: Int
@@ -242,7 +221,6 @@ struct CollapsibleHeader: View {
     }
 }
 
-/// A dark text box with a thin border.
 struct WrapFieldStyle: TextFieldStyle {
     func _body(configuration: TextField<Self._Label>) -> some View {
         configuration
@@ -255,7 +233,6 @@ struct WrapFieldStyle: TextFieldStyle {
     }
 }
 
-/// Grey helper text, for empty states and explanations.
 struct HintText: View {
     let text: String
     init(_ text: String) { self.text = text }
@@ -269,7 +246,6 @@ struct HintText: View {
     }
 }
 
-/// The name in "Welcome back, …". Defaults to your Mac account's first name.
 enum WrapUser {
     static var defaultName: String {
         NSFullUserName().split(separator: " ").first.map(String.init) ?? "there"
@@ -279,13 +255,10 @@ enum WrapUser {
 // MARK: - Nav bar that shrinks on scroll
 
 extension EnvironmentValues {
-    /// How far the page is scrolled, from 0 (at the top) to 1 (scrolled past
-    /// the shrink distance). The nav bar follows it frame by frame.
     @Entry var setNavProgress: (CGFloat) -> Void = { _ in }
 }
 
 extension View {
-    /// Let the nav bar shrink smoothly as this scroll view scrolls.
     func reportsScrollForNav() -> some View {
         modifier(ReportsScrollForNav())
     }
@@ -294,7 +267,6 @@ extension View {
 private struct ReportsScrollForNav: ViewModifier {
     @Environment(\.setNavProgress) private var setNavProgress
 
-    /// Points of scrolling it takes to go from full width to the small pill.
     private let shrinkDistance: CGFloat = 160
 
     func body(content: Content) -> some View {
@@ -302,7 +274,7 @@ private struct ReportsScrollForNav: ViewModifier {
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
                 let offset = geometry.contentOffset.y + geometry.contentInsets.top
                 let progress = min(max(offset / shrinkDistance, 0), 1)
-                return (progress * 200).rounded() / 200   // fine steps, fewer redraws
+                return (progress * 200).rounded() / 200
             } action: { _, progress in
                 setNavProgress(progress)
             }

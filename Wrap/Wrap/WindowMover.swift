@@ -1,7 +1,6 @@
 import AppKit
 import ApplicationServices
 
-/// A window's saved position and size, plus its title to find it again.
 struct SavedWindow: Codable, Equatable {
     var x: Double
     var y: Double
@@ -12,18 +11,14 @@ struct SavedWindow: Codable, Equatable {
     var frame: CGRect { CGRect(x: x, y: y, width: width, height: height) }
 }
 
-/// Reads and moves other apps' windows using the macOS Accessibility API.
-/// Needs the Accessibility permission in System Settings > Privacy & Security.
 enum WindowMover {
     static var hasPermission: Bool { AXIsProcessTrusted() }
 
-    /// Shows the system prompt that sends the user to System Settings.
     static func requestPermission() {
         let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(options)
     }
 
-    /// The normal (non-panel, non-dialog) windows of an app, front to back.
     static func windows(of app: NSRunningApplication) -> [AXUIElement] {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
         var value: CFTypeRef?
@@ -54,14 +49,11 @@ enum WindowMover {
         guard let position = AXValueCreate(.cgPoint, &point),
               let size = AXValueCreate(.cgSize, &extent)
         else { return }
-        // Size, then position, then size again: some apps clamp the size
-        // to the screen they're on before they've moved.
         AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, size)
         AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, position)
         AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, size)
     }
 
-    /// True when the window is already (almost) where it should be.
     static func isPlaced(_ window: AXUIElement, at rect: CGRect) -> Bool {
         guard let current = frame(of: window) else { return false }
         return abs(current.minX - rect.minX) < 4 && abs(current.minY - rect.minY) < 4

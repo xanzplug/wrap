@@ -1,8 +1,6 @@
 import AppKit
 import UniformTypeIdentifiers
 
-/// "Export My Data": saves every project, shot, workspace item and template
-/// as one readable JSON file. Reference images are left out to keep it small.
 enum DataExport {
     struct Backup: Codable {
         var exportedAt: Date
@@ -40,7 +38,6 @@ enum DataExport {
         var shots: [String]
     }
 
-    /// Ask where to save, then write the file. Returns a short message for the screen.
     static func run(projects: [Project], templates: [ShotTemplate], account: String) -> String? {
         let backup = Backup(
             exportedAt: .now,

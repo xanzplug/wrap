@@ -3,12 +3,11 @@ import SwiftData
 
 @main
 struct WrapApp: App {
-    /// Who's signed in. Shared by the window and the menu bar.
     @State private var auth = AuthService()
     @AppStorage(AppSettings.showMenuBarIcon) private var showMenuBarIcon = true
 
     init() {
-        _ = AppUpdater.shared   // start the daily update check
+        _ = AppUpdater.shared
     }
 
     var body: some Scene {
@@ -34,7 +33,6 @@ struct WrapApp: App {
     }
 }
 
-/// What appears when you click the logo in the menu bar.
 struct MenuBarContent: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(AuthService.self) private var auth
@@ -61,7 +59,6 @@ struct MenuBarContent: View {
     }
 }
 
-/// "Check for Updates…", greyed out while a check is running.
 struct CheckForUpdatesButton: View {
     var body: some View {
         Button("Check for Updates…") {
@@ -71,7 +68,6 @@ struct CheckForUpdatesButton: View {
     }
 }
 
-/// The signed-in account's newest active projects, one click to launch each.
 struct MenuBarProjects: View {
     @Query(filter: #Predicate<Project> { $0.isWrapped == false },
            sort: \Project.createdAt, order: .reverse)

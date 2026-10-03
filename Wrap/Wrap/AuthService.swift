@@ -1,21 +1,17 @@
 import Foundation
 import Observation
 
-/// The signed-in person.
 struct WrapAccount: Equatable {
     let id: String
     let email: String
     let name: String
 }
 
-/// A message Supabase sent back, shown to the user as-is.
 struct AuthError: LocalizedError {
     let message: String
     var errorDescription: String? { message }
 }
 
-/// Sign up, log in, reset password and sign out, using Supabase Auth.
-/// Passwords go straight to Supabase; Wrap only keeps a session token in the Keychain.
 @Observable
 final class AuthService {
     enum State: Equatable {
@@ -44,7 +40,6 @@ final class AuthService {
 
     // MARK: Session
 
-    /// On launch: stay signed in if there's a saved session.
     func restoreSession() async {
         guard isConfigured, let refreshToken = Keychain.read(Self.refreshTokenKey) else {
             state = .signedOut
@@ -72,7 +67,6 @@ final class AuthService {
             try handleSession(json)
             return .signedIn
         }
-        // Supabase is set to confirm emails first.
         return .checkEmail
     }
 
@@ -98,7 +92,6 @@ final class AuthService {
         state = .signedOut
     }
 
-    /// A current access token for talking to the database, refreshed when it's about to expire.
     func validAccessToken() async throws -> String {
         if let accessToken, Date() < accessExpiry.addingTimeInterval(-60) {
             return accessToken
@@ -130,7 +123,7 @@ final class AuthService {
         accessExpiry = Date().addingTimeInterval((json["expires_in"] as? Double) ?? 3600)
         Keychain.save(refresh, for: Self.refreshTokenKey)
         if !name.isEmpty {
-            UserDefaults.standard.set(name, forKey: "displayName")   // used by the dashboard greeting
+            UserDefaults.standard.set(name, forKey: "displayName")
         }
         state = .signedIn(WrapAccount(id: id, email: email, name: name))
     }

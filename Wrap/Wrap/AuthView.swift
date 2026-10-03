@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// The sign-in screen: log in, sign up, or reset a password.
 struct AuthView: View {
     @Environment(AuthService.self) private var auth
 

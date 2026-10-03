@@ -1,7 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The panel on the right of the Shots tab: everything about one shot.
 struct ShotDetailView: View {
     @Bindable var shot: Shot
     @State private var choosingImage = false
@@ -40,7 +39,6 @@ struct ShotDetailView: View {
         }
     }
 
-    /// Shows the reference image, or a box you can drop one onto.
     private var referenceArea: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)

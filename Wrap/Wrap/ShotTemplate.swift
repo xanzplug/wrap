@@ -1,13 +1,10 @@
 import Foundation
 import SwiftData
 
-/// A reusable shot list, e.g. "Portrait session".
-/// Templates stay on this Mac; they aren't synced.
 @Model
 final class ShotTemplate {
     var name: String
     var createdAt: Date
-    /// The shots, saved as JSON so outfits, locations and notes come along too.
     var shotsJSON: String
 
     struct Item: Codable {
@@ -29,14 +26,12 @@ final class ShotTemplate {
         return items
     }
 
-    /// A template made from a project's current shot list (ticks are left off).
     convenience init(name: String, from project: Project) {
         self.init(name: name, items: project.sortedShots.map {
             Item(title: $0.title, outfit: $0.outfit, location: $0.location, notes: $0.notes)
         })
     }
 
-    /// Add this template's shots to the end of a project's list.
     func addShots(to project: Project, in context: ModelContext) {
         var order = (project.shots.map(\.order).max() ?? -1) + 1
         for item in items {
@@ -56,7 +51,6 @@ final class ShotTemplate {
         return String(decoding: data, as: UTF8.self)
     }
 
-    /// A few to start with, so the feature isn't empty on day one.
     static func makeStarters() -> [ShotTemplate] {
         [
             ShotTemplate(name: "Portrait session", items: [

@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 
-/// The right side of the window: the selected project, in tabs.
 struct ProjectDetailView: View {
     @Bindable var project: Project
 
@@ -45,7 +44,6 @@ struct ProjectDetailView: View {
             Section("Shoot day") {
                 ShootDateEditor(project: project)
             }
-
         }
         .reportsScrollForNav()
         .formStyle(.grouped)
@@ -54,7 +52,6 @@ struct ProjectDetailView: View {
     }
 }
 
-/// The sections of a project page.
 enum ProjectTab: String, CaseIterable, Identifiable {
     case shots, workspace, deliveries, overview
 
@@ -79,7 +76,6 @@ enum ProjectTab: String, CaseIterable, Identifiable {
     }
 }
 
-/// A rounded tab button: white when selected, outlined when not.
 struct TabPill: View {
     let title: String
     let systemImage: String

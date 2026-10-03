@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""Publish a new Wrap version for the in-app "Check for Updates…" button.
-
-1. In Xcode: Product > Archive, then Distribute App > Custom > Copy App.
-2. Run:  python3 updates/release.py "<folder with Wrap.app>" "What's new, one line" "Another line"
-3. Commit and push updates/ — Wraps everywhere will see the new version.
-
-The zip is signed with the private key in .release-keys/ (never committed).
-Wrap checks the signature against the public key built into the app.
-"""
+"""Usage: python3 updates/release.py <export folder> "note" ["note" ...]"""
 import base64, html, os, plistlib, subprocess, sys
 from datetime import datetime, timezone
 from email.utils import format_datetime
@@ -32,8 +24,6 @@ def main():
     existing = open(APPCAST).read() if os.path.exists(APPCAST) else ""
     if f"<sparkle:version>{build}</sparkle:version>" in existing:
         sys.exit(f"Build {build} is already published. Raise the version in Xcode first.")
-
-    # Zip it, keeping the symlinks inside frameworks intact.
     name = f"Wrap-{short}.zip"
     zip_path = os.path.join(UPDATES, name)
     if os.path.exists(zip_path):

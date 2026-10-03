@@ -1,7 +1,6 @@
 import Foundation
 import Security
 
-/// Stores small secrets (like the login session) in the macOS Keychain.
 enum Keychain {
     private static let service = "com.xanzplug.Wrap"
 

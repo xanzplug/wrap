@@ -1,7 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The Deliveries tab: send a finished file, get a link for your client.
 struct DeliveriesView: View {
     let project: Project
 

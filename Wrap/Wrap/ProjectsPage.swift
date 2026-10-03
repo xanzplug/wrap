@@ -1,13 +1,11 @@
 import SwiftUI
 import SwiftData
 
-/// The Projects tab: every project, active and wrapped.
 struct ProjectsListView: View {
     let projects: [Project]
     let open: (Project) -> Void
     let create: (String) -> Void
     let delete: (Project) -> Void
-    /// Set to true (from the top bar's Search button) to jump into the search box.
     @Binding var searchRequest: Bool
 
     @State private var newName = ""
@@ -126,7 +124,6 @@ struct ProjectsListView: View {
     }
 }
 
-/// One project, full page: header with actions, then its tabs.
 struct ProjectPage: View {
     @Bindable var project: Project
     let back: () -> Void
@@ -197,7 +194,6 @@ struct ProjectPage: View {
     }
 }
 
-/// Pick (or clear) a project's shoot date and time.
 struct ShootDateEditor: View {
     @Bindable var project: Project
 
@@ -227,14 +223,12 @@ struct ShootDateEditor: View {
         )
     }
 
-    /// Tomorrow at 9 AM.
     static var defaultDate: Date {
         let calendar = Calendar.current
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: .now) ?? .now
         return calendar.date(bySettingHour: 9, minute: 0, second: 0, of: tomorrow) ?? tomorrow
     }
 
-    /// Drop the seconds, so the date syncs exactly.
     static func wholeMinute(_ date: Date) -> Date {
         let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
         return Calendar.current.date(from: parts) ?? date

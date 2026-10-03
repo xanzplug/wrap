@@ -1,15 +1,12 @@
 import Foundation
 import ServiceManagement
 
-/// Names and defaults for the choices on the Settings page.
 enum AppSettings {
-    // General
-    static let showMenuBarIcon = "showMenuBarIcon"      // Bool, default true
-    static let startPage = "startPage"                  // "dashboard" or "projects"
+    static let showMenuBarIcon = "showMenuBarIcon"
+    static let startPage = "startPage"
 
-    // Delivery
-    static let linkExpiryHours = "linkExpiryHours"      // 24, 48 or 168
-    static let downloadAlerts = "downloadAlertsOn"      // Bool, default true
+    static let linkExpiryHours = "linkExpiryHours"
+    static let downloadAlerts = "downloadAlertsOn"
 
     static let expiryChoices = [24, 48, 168]
 
@@ -22,7 +19,6 @@ enum AppSettings {
         UserDefaults.standard.object(forKey: downloadAlerts) as? Bool ?? true
     }
 
-    /// "24 hours", "48 hours", "7 days"
     static func expiryLabel(_ hours: Int) -> String {
         hours % 24 == 0 && hours > 48 ? "\(hours / 24) days" : "\(hours) hours"
     }
@@ -33,7 +29,6 @@ enum AppSettings {
         SMAppService.mainApp.status == .enabled
     }
 
-    /// Turn "Open Wrap at login" on or off. Returns an error message if macOS refused.
     static func setOpensAtLogin(_ on: Bool) -> String? {
         do {
             if on {

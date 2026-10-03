@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 
-/// Shows the sign-in screen until someone is logged in, then the app.
 struct RootView: View {
     @Environment(AuthService.self) private var auth
 
@@ -16,7 +15,6 @@ struct RootView: View {
             case .signedOut:
                 AuthView()
             case .signedIn(let account):
-                // Each account has its own projects.
                 ContentView()
                     .modelContainer(LibraryStore.container(for: account.id))
                     .id(account.id)
@@ -28,7 +26,6 @@ struct RootView: View {
                 await auth.restoreSession()
             }
         }
-        // Start syncing when someone logs in; stop when they log out.
         .task(id: auth.account?.id) {
             if let account = auth.account {
                 DeliveryService.shared.auth = auth

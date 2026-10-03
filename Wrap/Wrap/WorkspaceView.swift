@@ -2,7 +2,6 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
-/// The Workspace tab: the apps, files, folders and websites this project opens.
 struct WorkspaceView: View {
     @Environment(\.modelContext) private var context
     let project: Project
@@ -176,7 +175,6 @@ struct WorkspaceView: View {
     }
 }
 
-/// One line in the workspace list: icon, name, kind.
 struct WorkspaceRow: View {
     let item: WorkspaceItem
 

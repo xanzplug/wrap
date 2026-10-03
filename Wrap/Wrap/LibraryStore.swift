@@ -1,13 +1,10 @@
 import Foundation
 import SwiftData
 
-/// Each account gets its own project library on this Mac:
-/// ~/Library/Application Support/Wrap/Accounts/<account id>/Library.store
 enum LibraryStore {
     private static var containers: [String: ModelContainer] = [:]
     private static let legacyClaimedKey = "legacyLibraryClaimed"
 
-    /// The library for this account, opened once and then reused.
     static func container(for accountID: String) -> ModelContainer {
         if let existing = containers[accountID] { return existing }
 
@@ -22,8 +19,6 @@ enum LibraryStore {
         do {
             container = try open(storeURL)
         } catch {
-            // The copied library couldn't be read (for example, it belonged to
-            // another app). Start this account with a fresh, empty library.
             removeStoreFiles(at: storeURL)
             container = (try? open(storeURL)) ?? inMemoryFallback()
         }
@@ -32,7 +27,6 @@ enum LibraryStore {
         return container
     }
 
-    /// Give each account a few shot list templates the first time.
     private static func addStarterTemplatesIfNeeded(to container: ModelContainer, accountID: String) {
         let key = "starterTemplatesAdded.\(accountID)"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
@@ -58,8 +52,6 @@ enum LibraryStore {
         )
     }
 
-    /// Before accounts, Wrap kept one shared library. The first account to
-    /// log in on this Mac takes it over, so nobody loses their projects.
     private static func adoptOldLibraryIfNeeded(into storeURL: URL) {
         let defaults = UserDefaults.standard
         let fm = FileManager.default
@@ -78,7 +70,6 @@ enum LibraryStore {
                 try? fm.copyItem(at: from, to: to)
             }
         }
-        // Big reference images are kept in a hidden folder next to the store.
         let oldImages = URL.applicationSupportDirectory.appending(path: ".default_SUPPORT")
         if fm.fileExists(atPath: oldImages.path) {
             try? fm.copyItem(at: oldImages, to: folder.appending(path: ".Library_SUPPORT"))

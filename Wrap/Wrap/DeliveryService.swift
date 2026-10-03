@@ -4,14 +4,13 @@ import Observation
 import UniformTypeIdentifiers
 import UserNotifications
 
-/// A file sent to a client, as the server sees it.
 struct Delivery: Identifiable, Equatable {
     let id: String
     let projectID: String?
     let fileName: String
     let sizeBytes: Int64
     let token: String
-    let status: String          // uploading, ready, downloaded, expired, cancelled
+    let status: String
     let createdAt: Date?
     let expiresAt: Date?
     let downloadedAt: Date?
@@ -20,7 +19,6 @@ struct Delivery: Identifiable, Equatable {
     var isActive: Bool { status == "ready" || status == "downloaded" }
 }
 
-/// A file on its way up.
 struct UploadProgress: Identifiable, Equatable {
     let id = UUID()
     let fileName: String
@@ -29,8 +27,6 @@ struct UploadProgress: Identifiable, Equatable {
     var error: String?
 }
 
-/// Sends files to clients: uploads them through the delivery service,
-/// hands back a link, and keeps the list of deliveries up to date.
 @Observable
 final class DeliveryService {
     static let shared = DeliveryService()
@@ -53,7 +49,6 @@ final class DeliveryService {
         return uploads.filter { $0.projectID == id }
     }
 
-    /// Reload the list from the server, and notify about new downloads.
     func refresh() async {
         guard SupabaseConfig.isConfigured, let auth, auth.account != nil else { return }
         do {
@@ -67,7 +62,6 @@ final class DeliveryService {
             let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]] ?? []
             let fresh = rows.compactMap(Self.delivery(from:))
 
-            // Tell the user when a client has just downloaded something.
             let before = Dictionary(deliveries.map { ($0.id, $0.status) }, uniquingKeysWith: { a, _ in a })
             for delivery in fresh where AppSettings.downloadAlertsOn
                 && delivery.status == "downloaded" && before[delivery.id] == "ready" {
@@ -75,13 +69,11 @@ final class DeliveryService {
             }
             deliveries = fresh
         } catch {
-            // Try again on the next refresh.
         }
     }
 
     // MARK: Send
 
-    /// Upload a file for this project and copy its link when done.
     func send(_ fileURL: URL, for project: Project) {
         let projectID = project.remoteID.uuidString.lowercased()
         let progress = UploadProgress(fileName: fileURL.lastPathComponent, projectID: projectID)
@@ -112,20 +104,16 @@ final class DeliveryService {
         NSPasteboard.general.setString(link.absoluteString, forType: .string)
     }
 
-    /// Stop sharing: the link stops working and the file is deleted.
     func cancel(_ delivery: Delivery) async {
         _ = try? await service("DELETE", "/deliveries/\(delivery.id)")
         await refresh()
     }
 
-    /// Space left for files still waiting for clients.
     var freeBytes: Int64 {
         let used = deliveries.filter(\.isActive).reduce(Int64(0)) { $0 + $1.sizeBytes }
         return max(0, DeliveryConfig.maxActiveBytes - used)
     }
 
-    /// Sends the file in pieces (Supabase's free plan allows 50 MB per stored
-    /// object), then asks the service to join them into one link.
     private func upload(_ fileURL: URL, projectID: String, progressID: UUID) async throws -> String {
         guard DeliveryConfig.isConfigured, auth != nil else {
             throw AuthError(message: "Delivery isn't connected yet.")
@@ -179,13 +167,11 @@ final class DeliveryService {
             }
             return link
         } catch {
-            // Don't leave half a file taking up space.
             _ = try? await service("DELETE", "/deliveries/\(id)")
             throw error
         }
     }
 
-    /// Send one piece, trying up to 3 times if the connection drops.
     private func sendPiece(_ data: Data, deliveryID: String, index: Int,
                            onProgress: @escaping (Double) -> Void) async throws {
         guard let auth, let url = URL(string: DeliveryConfig.serviceURL + "/deliveries/\(deliveryID)/parts/\(index)") else {
@@ -206,12 +192,10 @@ final class DeliveryService {
                 if (200..<300).contains(status) { return }
                 let result = (try? JSONSerialization.jsonObject(with: body)) as? [String: Any] ?? [:]
                 lastError = AuthError(message: result["error"] as? String ?? "Upload failed (error \(status)).")
-                // A problem with the request itself won't fix itself by retrying.
                 if (400..<500).contains(status) { throw lastError }
             } catch let error as AuthError {
                 throw error
             } catch {
-                // Network hiccup: wait a moment and try again.
             }
             if attempt < 3 { try await Task.sleep(for: .seconds(2 * attempt)) }
         }
@@ -280,7 +264,6 @@ final class DeliveryService {
     private static func date(_ value: Any?) -> Date? {
         guard var string = value as? String else { return nil }
         if let date = isoFormatter.date(from: string) { return date }
-        // Trim the server's 6 decimal places to 3.
         if let dot = string.firstIndex(of: "."),
            let zone = string[dot...].firstIndex(where: { $0 == "+" || $0 == "-" || $0 == "Z" }) {
             let fraction = String(string[string.index(after: dot)..<zone].prefix(3))
@@ -307,7 +290,6 @@ final class DeliveryService {
     }
 }
 
-/// Reports how much of an upload has been sent.
 private final class UploadTracker: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     private let onProgress: (Double) -> Void
 

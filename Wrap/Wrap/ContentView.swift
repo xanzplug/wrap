@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 
-/// Which page the main window is showing.
 enum Route: Hashable {
     case dashboard
     case projects
@@ -9,25 +8,19 @@ enum Route: Hashable {
     case project(PersistentIdentifier)
 }
 
-/// The main window: a floating nav bar, then the current page.
 struct ContentView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var route: Route = .dashboard
     @State private var searchRequest = false
-    /// 0 at the top of a page, 1 once scrolled down: the nav bar follows it smoothly.
     @State private var navProgress: CGFloat = 0
     @AppStorage(ShootReminders.enabledKey) private var remindersOn = true
 
     var body: some View {
-        // The page fills the window and scrolls *under* the nav bar,
-        // which floats on top as frosted glass.
         page
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .environment(\.setNavProgress) { progress in
                 guard progress != navProgress else { return }
-                // Every change glides a little, so mouse-wheel steps blend into
-                // one continuous motion. A bigger jump (like a new page) glides longer.
                 let jump = abs(progress - navProgress)
                 withAnimation(.smooth(duration: jump > 0.3 ? 0.4 : 0.22)) {
                     navProgress = progress
@@ -53,12 +46,10 @@ struct ContentView: View {
                     onNewProject: { createProject(named: "") }
                 )
                 .padding(.horizontal, 16)
-                .padding(.top, 38)      // room for the window's close/minimise buttons
+                .padding(.top, 38)
                 .padding(.bottom, 8)
                 .frame(maxWidth: .infinity)
                 .background(alignment: .top) {
-                    // Content fades out under the window buttons instead of
-                    // running into them; it stays visible behind the glass.
                     LinearGradient(
                         colors: [Color.wrapBackground, Color.wrapBackground.opacity(0)],
                         startPoint: .top, endPoint: .bottom
@@ -79,8 +70,6 @@ struct ContentView: View {
         }
     }
 
-    /// Changes whenever a shoot date, wrap state or shot count changes,
-    /// so the reminders are rescheduled.
     private var reminderKey: String {
         projects.map { project in
             let shoot = project.shootDate.map { String(Int($0.timeIntervalSince1970)) } ?? "-"
@@ -128,7 +117,7 @@ struct ContentView: View {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         let project = Project(name: trimmed.isEmpty ? "Untitled Project" : trimmed)
         context.insert(project)
-        try? context.save()   // save first so the project keeps a stable ID
+        try? context.save()
         open(project)
     }
 
@@ -142,7 +131,6 @@ struct ContentView: View {
     }
 }
 
-/// The sections in the nav bar.
 enum NavTab: String, CaseIterable, Identifiable {
     case dashboard = "Dashboard"
     case projects = "Projects"
@@ -158,11 +146,8 @@ enum NavTab: String, CaseIterable, Identifiable {
     }
 }
 
-/// A floating rounded bar: logo on the left, sections in the middle,
-/// New project and your account on the right.
 struct TopBar: View {
     @Environment(AuthService.self) private var auth
-    /// 0 = full width (top of the page), 1 = small centered pill (scrolled down).
     let progress: CGFloat
     let selected: NavTab
     let select: (NavTab) -> Void
@@ -172,8 +157,6 @@ struct TopBar: View {
     @Namespace private var tabHighlight
 
     var body: some View {
-        // Left and right get equal space, so the sections stay centred
-        // and can never slide under the buttons.
         HStack(spacing: 12) {
             HStack(spacing: 10) {
                 Image("WrapLogo")
@@ -199,7 +182,6 @@ struct TopBar: View {
                 CircleIconButton(systemImage: "magnifyingglass", help: "Search projects (⌘F)", action: onSearch)
                     .keyboardShortcut("f", modifiers: .command)
                 Button(action: onNewProject) {
-                    // The words fold away as the bar shrinks, leaving a round +.
                     HStack(spacing: 6 * (1 - labelFold)) {
                         Image(systemName: "plus")
                             .font(.system(size: 13, weight: .bold))
@@ -221,14 +203,12 @@ struct TopBar: View {
         .padding(.leading, 16)
         .padding(.trailing, 8)
         .frame(height: 54)
-        // Full width at the top of a page, easing into a small pill as you scroll.
         .containerRelativeFrame(.horizontal) { width, _ in
             let full = width - 32
             let small = min(680, full)
             return full + (small - full) * eased
         }
         .background(
-            // Frosted glass: whatever scrolls underneath shows through, blurred.
             Capsule(style: .continuous)
                 .fill(.ultraThinMaterial)
                 .opacity(0.85)
@@ -244,18 +224,15 @@ struct TopBar: View {
         .shadow(color: .black.opacity(0.2 + 0.35 * eased), radius: 20, y: 8)
     }
 
-    /// How far "New project" has folded into a round + (0 = full words).
     private var labelFold: CGFloat {
         min(max((eased - 0.25) / 0.6, 0), 1)
     }
 
-    /// Smoothstep: starts and ends gently, so the change feels soft.
     private var eased: CGFloat {
         let p = min(max(progress, 0), 1)
         return p * p * (3 - 2 * p)
     }
 
-    /// One line for the account menu: synced, syncing, or failed.
     private var syncStatusText: String {
         switch SyncEngine.shared.status {
         case .idle: "Sync starting…"
@@ -270,8 +247,6 @@ struct TopBar: View {
         return false
     }
 
-    /// A round initial (with an orange dot if sync failed); click for your
-    /// email, sync status, Sync Now and Sign Out.
     private var accountMenu: some View {
         Menu {
             if let account = auth.account {
@@ -315,8 +290,6 @@ struct TopBar: View {
     }
 }
 
-/// One section in the nav bar: grey text, white when selected or hovered,
-/// with a soft pill that slides between sections.
 struct NavTabButton: View {
     let title: String
     let systemImage: String
@@ -352,9 +325,7 @@ struct NavTabButton: View {
     }
 }
 
-/// The big white button on the right of the nav bar.
 struct NavPrimaryButtonStyle: ButtonStyle {
-    /// 0 = "＋ New project" pill, 1 = a round + button.
     var fold: CGFloat = 0
 
     func makeBody(configuration: Configuration) -> some View {
@@ -373,7 +344,6 @@ struct NavPrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// A round outlined icon button, e.g. Search.
 struct CircleIconButton: View {
     let systemImage: String
     let help: String

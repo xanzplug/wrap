@@ -1,7 +1,6 @@
 import SwiftUI
 import SwiftData
 
-/// The Shots tab: a checklist you tick off on the day.
 struct ShotsView: View {
     @Environment(\.modelContext) private var context
     let project: Project
@@ -121,7 +120,6 @@ struct ShotsView: View {
         .fixedSize()
     }
 
-    /// Shown in place of the empty list: start from a template, or type below.
     private var emptyState: some View {
         VStack(spacing: 14) {
             Image(systemName: "camera")
@@ -214,7 +212,6 @@ struct ShotsView: View {
     }
 }
 
-/// One line in the shot list: checkbox, thumbnail, name, location.
 struct ShotRow: View {
     @Bindable var shot: Shot
 

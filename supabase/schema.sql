@@ -1,5 +1,3 @@
--- Wrap sync tables. Run once in the Supabase SQL editor.
--- Each row belongs to one user; row-level security means people only ever see their own.
 
 create table if not exists public.projects (
   id          uuid primary key,
@@ -38,7 +36,6 @@ create table if not exists public.workspace_items (
   updated_at  timestamptz not null default now()
 );
 
--- The server stamps every change, so each Mac can ask "what changed since…".
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql set search_path = '' as $$
 begin
@@ -60,7 +57,6 @@ create index if not exists projects_user_updated on public.projects (user_id, up
 create index if not exists shots_user_updated on public.shots (user_id, updated_at);
 create index if not exists workspace_items_user_updated on public.workspace_items (user_id, updated_at);
 
--- Row-level security: only your own rows.
 alter table public.projects enable row level security;
 alter table public.shots enable row level security;
 alter table public.workspace_items enable row level security;
@@ -75,5 +71,4 @@ drop policy if exists "Own workspace items" on public.workspace_items;
 create policy "Own workspace items" on public.workspace_items for all to authenticated
   using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
 
--- Added later: when each project's shoot happens (optional).
 alter table public.projects add column if not exists shoot_date timestamptz;

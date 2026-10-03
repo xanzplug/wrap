@@ -1,14 +1,10 @@
 import Foundation
 import UserNotifications
 
-/// Notifications before each scheduled shoot:
-/// the evening before (6 PM) and 2 hours before it starts.
 enum ShootReminders {
     private static let prefix = "shoot-"
-    /// The on/off switch in Settings.
     static let enabledKey = "shootRemindersOn"
 
-    /// One reminder, worked out on the main thread before scheduling.
     private struct Reminder {
         let id: String
         let date: Date
@@ -16,7 +12,6 @@ enum ShootReminders {
         let body: String
     }
 
-    /// Replace all shoot reminders with ones for these projects.
     static func schedule(for projects: [Project]) {
         let enabled = UserDefaults.standard.object(forKey: enabledKey) as? Bool ?? true
         let reminders = enabled ? makeReminders(for: projects) : []
@@ -24,7 +19,6 @@ enum ShootReminders {
         if !reminders.isEmpty {
             center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
         }
-        // Clear the old ones first, then add the new ones, in that order.
         Task {
             let pending = await center.pendingNotificationRequests()
             let old = pending.map(\.identifier).filter { $0.hasPrefix(prefix) }
@@ -47,7 +41,6 @@ enum ShootReminders {
             let time = shoot.formatted(date: .omitted, time: .shortened)
             let id = prefix + project.remoteID.uuidString
 
-            // The evening before, at 6 PM.
             if let dayBefore = calendar.date(byAdding: .day, value: -1, to: shoot),
                let evening = calendar.date(bySettingHour: 18, minute: 0, second: 0, of: dayBefore),
                evening > now {
@@ -55,7 +48,6 @@ enum ShootReminders {
                                        title: "Shoot tomorrow: \(project.displayName)",
                                        body: "Starts at \(time). \(shotsLine)"))
             }
-            // Two hours before.
             let soon = shoot.addingTimeInterval(-2 * 3600)
             if soon > now {
                 result.append(Reminder(id: id + "-soon", date: soon,
@@ -77,7 +69,6 @@ enum ShootReminders {
             UNNotificationRequest(identifier: reminder.id, content: content, trigger: trigger))
     }
 
-    /// "Today", "Tomorrow", "In 5 days", or a date further out.
     static func relativeDay(_ date: Date) -> String {
         let calendar = Calendar.current
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: .now),

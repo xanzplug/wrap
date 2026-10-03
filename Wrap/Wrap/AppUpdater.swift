@@ -2,13 +2,10 @@ import Foundation
 import Observation
 import Sparkle
 
-/// "Check for Updates…": looks for a newer Wrap on GitHub, then downloads,
-/// installs and restarts it. Also checks quietly once a day.
 @Observable
 final class AppUpdater {
     static let shared = AppUpdater()
 
-    /// False while a check is already running.
     private(set) var canCheck = false
 
     @ObservationIgnored private let controller: SPUStandardUpdaterController
@@ -27,7 +24,6 @@ final class AppUpdater {
         controller.checkForUpdates(nil)
     }
 
-    /// Check quietly once a day.
     var checksAutomatically: Bool {
         get {
             access(keyPath: \.checksAutomatically)
@@ -40,10 +36,8 @@ final class AppUpdater {
         }
     }
 
-    /// When Wrap last looked for a new version.
     var lastChecked: Date? { controller.updater.lastUpdateCheckDate }
 
-    /// e.g. "Version 1.1 (2)"
     static var versionText: String {
         let info = Bundle.main.infoDictionary
         let short = info?["CFBundleShortVersionString"] as? String ?? "?"

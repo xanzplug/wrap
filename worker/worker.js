@@ -1,24 +1,11 @@
-// Wrap delivery service (Cloudflare Worker, free plan).
-//
-// - Receives a file from the Wrap Mac app and stores it in Supabase Storage.
-//   Big files arrive in 45 MB pieces (Supabase's free plan allows 50 MB per
-//   object); the download streams the pieces back out as one file.
-// - Gives each file a share link: /d/<token> is a download page for the client.
-// - Deletes files an hour after the first download, or when the link expires
-//   (48 hours by default; the app can ask for 1 to 168 hours).
-//
-// Settings (Cloudflare dashboard > Worker > Settings):
-//   Variables: SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
-//   Secret:    SUPABASE_SECRET_KEY  (Supabase > Project Settings > API Keys > secret key)
-//   Cron:      every hour  (0 * * * *)
 
-const BUCKET = "deliveries";               // private Supabase Storage bucket
-const MAX_FILE_BYTES = 50 * 1024 * 1024;   // single-request uploads (older Wrap versions)
-const PART_BYTES = 45 * 1024 * 1024;       // piece size for big files (Supabase: 50 MB per object)
-const MAX_ACTIVE_BYTES = 900 * 1024 * 1024; // Supabase free plan has 1 GB of storage in total
-const EXPIRY_HOURS = 48;                   // unused links expire after this…
-const MAX_EXPIRY_HOURS = 168;              // …or up to 7 days if the sender asks
-const GRACE_MINUTES_AFTER_DOWNLOAD = 60;   // time to retry a dropped download
+const BUCKET = "deliveries";
+const MAX_FILE_BYTES = 50 * 1024 * 1024;
+const PART_BYTES = 45 * 1024 * 1024;
+const MAX_ACTIVE_BYTES = 900 * 1024 * 1024;
+const EXPIRY_HOURS = 48;
+const MAX_EXPIRY_HOURS = 168;
+const GRACE_MINUTES_AFTER_DOWNLOAD = 60;
 
 export default {
   async fetch(request, env, ctx) {
@@ -26,13 +13,11 @@ export default {
     const parts = url.pathname.split("/").filter(Boolean);
 
     try {
-      // Client-facing download page and file
       if (parts[0] === "d" && parts[1] && request.method === "GET") {
         if (parts[2] === "file") return await serveFile(parts[1], request, env, ctx);
         return await downloadPage(parts[1], env);
       }
 
-      // App-facing API (needs a logged-in Wrap user)
       if (parts[0] === "deliveries") {
         const user = await authenticate(request, env);
         if (!user) return json({ error: "Please log in to Wrap again." }, 401);
@@ -72,7 +57,6 @@ async function createDelivery(request, env, user, url) {
     return json({ error: `That file is ${formatBytes(size)}. Files can be up to 50 MB on the free plan.` }, 413);
   }
 
-  // Space for files that are still waiting to be downloaded.
   const active = await db(env, `deliveries?user_id=eq.${user.id}&status=in.(uploading,ready,downloaded)&select=size_bytes`);
   const used = active.reduce((sum, d) => sum + Number(d.size_bytes || 0), 0);
   if (used + size > MAX_ACTIVE_BYTES) {
@@ -114,8 +98,6 @@ async function createDelivery(request, env, user, url) {
 
   return json({ id, link: `${url.origin}/d/${token}`, token, expires_at: expiresAt });
 }
-
-// Big files: start, send each piece, then complete.
 
 async function startDelivery(request, env, user) {
   const body = await request.json().catch(() => ({}));
@@ -171,7 +153,7 @@ async function uploadPart(id, indexText, request, env, user) {
     headers: {
       apikey: env.SUPABASE_SECRET_KEY,
       "Content-Type": "application/octet-stream",
-      "x-upsert": "true",   // a retried piece replaces the earlier attempt
+      "x-upsert": "true",
     },
     body: request.body,
   });
@@ -183,7 +165,6 @@ async function completeDelivery(id, env, user, url) {
   const row = await ownDelivery(id, env, user);
   if (!row || row.status !== "uploading") return json({ error: "This upload isn't open any more." }, 404);
 
-  // Check every piece arrived, at the right size.
   const listed = await fetch(`${env.SUPABASE_URL}/storage/v1/object/list/${BUCKET}`, {
     method: "POST",
     headers: { apikey: env.SUPABASE_SECRET_KEY, "Content-Type": "application/json" },
@@ -273,7 +254,6 @@ async function serveFile(token, request, env, ctx) {
   return new Response(upstream.body, { status: upstream.status, headers });
 }
 
-// Count a download when it starts from the beginning of the file.
 function countDownload(row, rangeHeader, env, ctx) {
   if (rangeHeader && !/^bytes=0-/.test(rangeHeader)) return;
   ctx.waitUntil(db(env, `deliveries?id=eq.${row.id}`, {
@@ -286,14 +266,13 @@ function countDownload(row, rangeHeader, env, ctx) {
   }));
 }
 
-// Stream the pieces back out, in order, as one file. Supports resuming (Range).
 async function servePieces(row, rangeHeader, env, ctx) {
   const total = Number(row.size_bytes);
   let start = 0;
   let end = total - 1;
   const match = rangeHeader && /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
   if (match) {
-    if (match[1] === "") {               // last N bytes
+    if (match[1] === "") {
       start = Math.max(0, total - Number(match[2]));
     } else {
       start = Number(match[1]);
@@ -373,7 +352,6 @@ async function removeFile(row, env) {
       body: JSON.stringify({ prefixes: names }),
     });
   } catch (_) {
-    // Already gone.
   }
 }
 
