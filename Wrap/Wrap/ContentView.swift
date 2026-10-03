@@ -152,9 +152,9 @@ struct TopBar: View {
                     Image("WrapLogo")
                         .resizable()
                         .scaledToFit()
-                        .frame(height: 22)
+                        .frame(height: 20)
                     Text("wrap")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .tracking(-0.4)
                         .foregroundStyle(.white)
                 }
@@ -168,18 +168,19 @@ struct TopBar: View {
                 accountMenu
             }
         }
-        .padding(.leading, 20)
-        .padding(.trailing, 10)
-        .frame(height: 60)
+        .padding(.leading, 16)
+        .padding(.trailing, 8)
+        .frame(height: 54)
+        .frame(width: 700)   // a compact bar in the middle, not edge to edge
         .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            Capsule(style: .continuous)
                 .fill(Color.white.opacity(0.035))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            Capsule(style: .continuous)
                 .strokeBorder(Color.white.opacity(0.08))
         )
-        .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
+        .shadow(color: .black.opacity(0.45), radius: 22, y: 10)
     }
 
     /// A small cloud: synced, syncing, or failed (hover for details).
@@ -224,7 +225,7 @@ struct TopBar: View {
             Text(initial)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 36, height: 36)
+                .frame(width: 34, height: 34)
                 .background(Circle().fill(Color.white.opacity(0.08)))
                 .overlay(Circle().strokeBorder(Color.white.opacity(0.1)))
         }
@@ -252,9 +253,9 @@ struct NavTabButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(isSelected || hovering ? Color.white : Color.white.opacity(0.5))
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background {
                     if isSelected {
@@ -277,10 +278,10 @@ struct NavPrimaryButtonStyle: ButtonStyle {
         configuration.label
             .font(.system(size: 14, weight: .semibold))
             .foregroundStyle(.black)
-            .padding(.horizontal, 18)
-            .frame(height: 40)
+            .padding(.horizontal, 16)
+            .frame(height: 38)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
                     .fill(Color.white.opacity(configuration.isPressed ? 0.8 : 1))
             )
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
@@ -300,7 +301,7 @@ struct CircleIconButton: View {
             Image(systemName: systemImage)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(hovering ? Color.white : Color.white.opacity(0.7))
-                .frame(width: 36, height: 36)
+                .frame(width: 34, height: 34)
                 .background(Circle().fill(Color.white.opacity(hovering ? 0.08 : 0.03)))
                 .overlay(Circle().strokeBorder(Color.white.opacity(0.08)))
                 .contentShape(Circle())
