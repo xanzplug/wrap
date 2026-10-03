@@ -188,27 +188,33 @@ enum WrapUser {
 // MARK: - Nav bar that shrinks on scroll
 
 extension EnvironmentValues {
-    /// Called with true when the page has been scrolled down, false at the top.
-    @Entry var setNavCompact: (Bool) -> Void = { _ in }
+    /// How far the page is scrolled, from 0 (at the top) to 1 (scrolled past
+    /// the shrink distance). The nav bar follows it frame by frame.
+    @Entry var setNavProgress: (CGFloat) -> Void = { _ in }
 }
 
 extension View {
-    /// Tell the nav bar to shrink while this scroll view is scrolled down.
+    /// Let the nav bar shrink smoothly as this scroll view scrolls.
     func reportsScrollForNav() -> some View {
         modifier(ReportsScrollForNav())
     }
 }
 
 private struct ReportsScrollForNav: ViewModifier {
-    @Environment(\.setNavCompact) private var setNavCompact
+    @Environment(\.setNavProgress) private var setNavProgress
+
+    /// Points of scrolling it takes to go from full width to the small pill.
+    private let shrinkDistance: CGFloat = 120
 
     func body(content: Content) -> some View {
         content
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentOffset.y + geometry.contentInsets.top > 24
-            } action: { _, scrolled in
-                setNavCompact(scrolled)
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                let offset = geometry.contentOffset.y + geometry.contentInsets.top
+                let progress = min(max(offset / shrinkDistance, 0), 1)
+                return (progress * 200).rounded() / 200   // fine steps, fewer redraws
+            } action: { _, progress in
+                setNavProgress(progress)
             }
-            .onAppear { setNavCompact(false) }
+            .onAppear { setNavProgress(0) }
     }
 }

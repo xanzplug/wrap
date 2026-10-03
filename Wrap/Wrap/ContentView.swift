@@ -15,14 +15,14 @@ struct ContentView: View {
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var route: Route = .dashboard
     @State private var searchRequest = false
-    /// True while the page is scrolled down: the nav bar shrinks to a small pill.
-    @State private var navCompact = false
+    /// 0 at the top of a page, 1 once scrolled down: the nav bar follows it smoothly.
+    @State private var navProgress: CGFloat = 0
     @AppStorage(ShootReminders.enabledKey) private var remindersOn = true
 
     var body: some View {
         VStack(spacing: 0) {
             TopBar(
-                compact: navCompact,
+                progress: navProgress,
                 selected: selectedTab,
                 select: { tab in
                     withAnimation(.easeOut(duration: 0.18)) {
@@ -45,10 +45,16 @@ struct ContentView: View {
 
             page
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .environment(\.setNavCompact) { compact in
-                    guard compact != navCompact else { return }
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.86)) {
-                        navCompact = compact
+                .environment(\.setNavProgress) { progress in
+                    guard progress != navProgress else { return }
+                    if progress == 0 && navProgress > 0.3 {
+                        // Jumping back to the top (e.g. a new page): glide, don't snap.
+                        withAnimation(.smooth(duration: 0.35)) { navProgress = 0 }
+                    } else {
+                        // While scrolling, follow the finger exactly.
+                        var transaction = Transaction()
+                        transaction.disablesAnimations = true
+                        withTransaction(transaction) { navProgress = progress }
                     }
                 }
         }
@@ -138,8 +144,8 @@ enum NavTab: String, CaseIterable, Identifiable {
 /// New project and your account on the right.
 struct TopBar: View {
     @Environment(AuthService.self) private var auth
-    /// Small centered pill (scrolled down) or full width (at the top).
-    let compact: Bool
+    /// 0 = full width (top of the page), 1 = small centered pill (scrolled down).
+    let progress: CGFloat
     let selected: NavTab
     let select: (NavTab) -> Void
     let onSearch: () -> Void
@@ -148,85 +154,89 @@ struct TopBar: View {
     @Namespace private var tabHighlight
 
     var body: some View {
-        ZStack {
-            // The sections sit in the true centre of the bar.
-            HStack(spacing: 4) {
+        // Left and right get equal space, so the sections stay centred
+        // and can never slide under the buttons.
+        HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                Image("WrapLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 20)
+                Text("wrap")
+                    .font(.system(size: 17, weight: .semibold))
+                    .tracking(-0.4)
+                    .foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            HStack(spacing: 2) {
                 ForEach(NavTab.allCases) { tab in
                     NavTabButton(title: tab.rawValue, isSelected: tab == selected,
                                  namespace: tabHighlight) { select(tab) }
                 }
             }
+            .fixedSize()
 
-            HStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    Image("WrapLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(height: 20)
-                    Text("wrap")
-                        .font(.system(size: 17, weight: .semibold))
-                        .tracking(-0.4)
-                        .foregroundStyle(.white)
-                }
-                Spacer()
+            HStack(spacing: 8) {
                 CircleIconButton(systemImage: "magnifyingglass", help: "Search projects (⌘F)", action: onSearch)
                     .keyboardShortcut("f", modifiers: .command)
-                syncIndicator
                 Button("New project", action: onNewProject)
                     .buttonStyle(NavPrimaryButtonStyle())
                     .keyboardShortcut("n", modifiers: .command)
                 accountMenu
             }
+            .fixedSize()
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.leading, 16)
         .padding(.trailing, 8)
         .frame(height: 54)
-        // Full width at the top of a page; a small pill in the middle once you scroll.
+        // Full width at the top of a page, easing into a small pill as you scroll.
         .containerRelativeFrame(.horizontal) { width, _ in
-            compact ? min(700, width - 32) : width - 32
+            let full = width - 32
+            let small = min(760, full)
+            return full + (small - full) * eased
         }
         .background(
             Capsule(style: .continuous)
-                .fill(Color.white.opacity(compact ? 0.06 : 0.035))
+                .fill(Color.white.opacity(0.035 + 0.03 * eased))
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08))
+                .strokeBorder(Color.white.opacity(0.08 + 0.04 * eased))
         )
-        .shadow(color: .black.opacity(0.45), radius: 22, y: 10)
+        .shadow(color: .black.opacity(0.25 + 0.3 * eased), radius: 14 + 12 * eased, y: 4 + 8 * eased)
     }
 
-    /// A small cloud: synced, syncing, or failed (hover for details).
-    @ViewBuilder private var syncIndicator: some View {
+    /// Smoothstep: starts and ends gently, so the change feels soft.
+    private var eased: CGFloat {
+        let p = min(max(progress, 0), 1)
+        return p * p * (3 - 2 * p)
+    }
+
+    /// One line for the account menu: synced, syncing, or failed.
+    private var syncStatusText: String {
         switch SyncEngine.shared.status {
-        case .idle:
-            EmptyView()
-        case .syncing:
-            ProgressView()
-                .controlSize(.small)
-                .frame(width: 20)
-                .help("Syncing…")
-        case .synced(let date):
-            Image(systemName: "checkmark.icloud")
-                .font(.system(size: 14))
-                .foregroundStyle(Color.wrapSecondary)
-                .frame(width: 20)
-                .help("Synced at \(date.formatted(date: .omitted, time: .shortened))")
-        case .failed(let message):
-            Image(systemName: "exclamationmark.icloud")
-                .font(.system(size: 14))
-                .foregroundStyle(.orange)
-                .frame(width: 20)
-                .help("Sync failed: \(message)")
+        case .idle: "Sync starting…"
+        case .syncing: "Syncing…"
+        case .synced(let date): "Synced at \(date.formatted(date: .omitted, time: .shortened))"
+        case .failed(let message): "Sync failed: \(message)"
         }
     }
 
-    /// A round initial; click for your email, Sync Now and Sign Out.
+    private var syncFailed: Bool {
+        if case .failed = SyncEngine.shared.status { return true }
+        return false
+    }
+
+    /// A round initial (with an orange dot if sync failed); click for your
+    /// email, sync status, Sync Now and Sign Out.
     private var accountMenu: some View {
         Menu {
             if let account = auth.account {
                 Text(account.name.isEmpty ? account.email : "\(account.name) · \(account.email)")
             }
+            Text(syncStatusText)
             Button("Sync Now") {
                 Task { await SyncEngine.shared.syncNow() }
             }
@@ -241,6 +251,16 @@ struct TopBar: View {
                 .frame(width: 34, height: 34)
                 .background(Circle().fill(Color.white.opacity(0.08)))
                 .overlay(Circle().strokeBorder(Color.white.opacity(0.1)))
+                .overlay(alignment: .topTrailing) {
+                    if syncFailed {
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 9, height: 9)
+                            .overlay(Circle().strokeBorder(Color.wrapBackground, lineWidth: 2))
+                            .offset(x: 1, y: -1)
+                    }
+                }
+                .help(syncStatusText)
         }
         .menuStyle(.button)
         .buttonStyle(.plain)
