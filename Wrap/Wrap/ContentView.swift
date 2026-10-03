@@ -222,13 +222,10 @@ struct TopBar: View {
             // Frosted glass: whatever scrolls underneath shows through, blurred.
             Capsule(style: .continuous)
                 .fill(.ultraThinMaterial)
+                .opacity(0.85)
                 .overlay(
                     Capsule(style: .continuous)
-                        .fill(Color.black.opacity(0.35 - 0.1 * eased))
-                )
-                .overlay(
-                    Capsule(style: .continuous)
-                        .fill(Color.white.opacity(0.03 + 0.03 * eased))
+                        .fill(Color.black.opacity(0.12))
                 )
         )
         .overlay(
