@@ -15,6 +15,8 @@ struct DashboardView: View {
     @State private var editingName = false
     @State private var showLinks = true
     @State private var showShoots = true
+    /// How far the page is scrolled, used to fade the hero glow away.
+    @State private var scrollOffset: CGFloat = 0
 
     private var active: [Project] { projects.filter { !$0.isWrapped } }
     private var allShots: [Shot] { active.flatMap(\.shots) }
@@ -60,8 +62,16 @@ struct DashboardView: View {
         }
         .background(alignment: .top) {
             // Soft drifting light behind the hero; the glass nav bar floats over it.
+            // It fades out and slides up a little as you scroll down.
             HeroGlow()
+                .opacity(glowOpacity)
+                .offset(y: -min(scrollOffset, 400) * 0.35)
                 .ignoresSafeArea(edges: .top)
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            max(0, geometry.contentOffset.y + geometry.contentInsets.top)
+        } action: { _, offset in
+            scrollOffset = offset
         }
         .reportsScrollForNav()
         .task {
@@ -150,6 +160,14 @@ struct DashboardView: View {
             .fixedSize()
             .offset(y: -60)
         }
+    }
+
+    /// Fully visible at the top, gone after about 380 points of scrolling,
+    /// with a gentle ease so it doesn't fade in a straight line.
+    private var glowOpacity: Double {
+        let t = min(max(scrollOffset / 380, 0), 1)
+        let eased = t * t * (3 - 2 * t)
+        return 1 - eased
     }
 
     /// The bold white second line of the hero.
