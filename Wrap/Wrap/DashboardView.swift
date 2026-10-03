@@ -20,6 +20,12 @@ struct DashboardView: View {
     private var doneShots: Int { allShots.filter(\.isDone).count }
     private var withWorkspace: [Project] { active.filter { !$0.workspaceItems.isEmpty } }
     private var trimmedName: String { newName.trimmingCharacters(in: .whitespaces) }
+    private var statusLine: String {
+        let left = allShots.count - doneShots
+        let projectsPart = active.count == 1 ? "1 active project" : "\(active.count) active projects"
+        let shotsPart = left == 1 ? "1 shot to go" : "\(left) shots to go"
+        return active.isEmpty ? "No projects yet. Make one to get started." : "\(projectsPart) · \(shotsPart)"
+    }
     private var upcoming: [Project] {
         projects.filter { $0.upcomingShoot != nil }
             .sorted { $0.upcomingShoot! < $1.upcomingShoot! }
@@ -29,7 +35,7 @@ struct DashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 greeting
-                    .padding(.top, 40)
+                    .padding(.top, 32)
                 HStack(alignment: .top, spacing: 64) {
                     progress
                     storage
@@ -70,6 +76,11 @@ struct DashboardView: View {
                     .foregroundStyle(.white)
                 Text(displayName)
                     .foregroundStyle(Color.wrapSecondary)
+                Text(statusLine)
+                    .font(.system(size: 14))
+                    .tracking(0)
+                    .foregroundStyle(Color.wrapSecondary)
+                    .padding(.top, 14)
             }
             .font(.system(size: 46, weight: .medium))
             .tracking(-1.4)

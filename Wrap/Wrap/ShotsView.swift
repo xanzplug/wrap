@@ -114,7 +114,8 @@ struct ShotsView: View {
                 .background(Capsule().fill(Color.white.opacity(0.03)))
                 .overlay(Capsule().strokeBorder(Color.wrapBorder))
         }
-        .menuStyle(.borderlessButton)
+        .menuStyle(.button)
+        .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
     }

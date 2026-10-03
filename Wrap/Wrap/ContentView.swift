@@ -9,7 +9,7 @@ enum Route: Hashable {
     case project(PersistentIdentifier)
 }
 
-/// The main window: a top bar, page tabs, then the current page.
+/// The main window: a floating nav bar, then the current page.
 struct ContentView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
@@ -17,23 +17,32 @@ struct ContentView: View {
     @State private var searchRequest = false
     @AppStorage(ShootReminders.enabledKey) private var remindersOn = true
 
-    private var activeProjects: [Project] { projects.filter { !$0.isWrapped } }
-
     var body: some View {
         VStack(spacing: 0) {
             TopBar(
-                status: statusText,
-                onProjects: { route = .projects },
+                selected: selectedTab,
+                select: { tab in
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        switch tab {
+                        case .dashboard: route = .dashboard
+                        case .projects: route = .projects
+                        case .settings: route = .settings
+                        }
+                    }
+                },
                 onSearch: {
                     route = .projects
                     searchRequest = true
                 },
                 onNewProject: { createProject(named: "") }
             )
-            Rectangle().fill(Color.wrapBorder).frame(height: 1)
-            pageTabs
+            .padding(.horizontal, 16)
+            .padding(.top, 38)      // room for the window's close/minimise buttons
+            .padding(.bottom, 8)
+
             page
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity)
         }
         .background(Color.wrapBackground)
         .frame(minWidth: 900, minHeight: 640)
@@ -77,37 +86,12 @@ struct ContentView: View {
         }
     }
 
-    private var pageTabs: some View {
-        HStack(spacing: 28) {
-            tab("Dashboard", isOn: route == .dashboard) { route = .dashboard }
-            tab("Projects", isOn: isProjectsRoute) { route = .projects }
-            tab("Settings", isOn: route == .settings) { route = .settings }
-            Spacer()
-        }
-        .padding(.horizontal, 48)
-        .padding(.vertical, 16)
-    }
-
-    private var isProjectsRoute: Bool {
+    private var selectedTab: NavTab {
         switch route {
-        case .projects, .project: true
-        default: false
+        case .dashboard: .dashboard
+        case .projects, .project: .projects
+        case .settings: .settings
         }
-    }
-
-    private func tab(_ title: String, isOn: Bool, action: @escaping () -> Void) -> some View {
-        Button(title, action: action)
-            .buttonStyle(.plain)
-            .font(.system(size: 14))
-            .foregroundStyle(isOn ? Color.white : Color.wrapSecondary)
-    }
-
-    private var statusText: String {
-        let count = activeProjects.count
-        let left = activeProjects.flatMap(\.shots).filter { !$0.isDone }.count
-        let projectsPart = count == 1 ? "1 active project" : "\(count) active projects"
-        let shotsPart = left == 1 ? "1 shot to go" : "\(left) shots to go"
-        return count == 0 ? "No projects yet · make one to get started" : "\(projectsPart) · \(shotsPart)"
     }
 
     // MARK: Actions
@@ -134,68 +118,96 @@ struct ContentView: View {
     }
 }
 
-/// The strip across the top: logo, status, and quick buttons.
+/// The sections in the nav bar.
+enum NavTab: String, CaseIterable, Identifiable {
+    case dashboard = "Dashboard"
+    case projects = "Projects"
+    case settings = "Settings"
+    var id: String { rawValue }
+}
+
+/// A floating rounded bar: logo on the left, sections in the middle,
+/// New project and your account on the right.
 struct TopBar: View {
     @Environment(AuthService.self) private var auth
-    let status: String
-    let onProjects: () -> Void
+    let selected: NavTab
+    let select: (NavTab) -> Void
     let onSearch: () -> Void
     let onNewProject: () -> Void
 
+    @Namespace private var tabHighlight
+
     var body: some View {
-        HStack(spacing: 14) {
-            HStack(spacing: 8) {
-                Image("WrapLogo")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 18)
-                Text("wrap")
-                    .font(.system(size: 16, weight: .semibold))
-                    .tracking(-0.3)
+        ZStack {
+            // The sections sit in the true centre of the bar.
+            HStack(spacing: 4) {
+                ForEach(NavTab.allCases) { tab in
+                    NavTabButton(title: tab.rawValue, isSelected: tab == selected,
+                                 namespace: tabHighlight) { select(tab) }
+                }
             }
-            Rectangle().fill(Color.wrapBorder).frame(width: 1, height: 18)
-            Text(status)
-                .font(.system(size: 13))
-                .foregroundStyle(Color.wrapSecondary)
-                .lineLimit(1)
-            Spacer()
-            Button("Search", systemImage: "magnifyingglass", action: onSearch)
-                .buttonStyle(.wrapSecondary)
-                .keyboardShortcut("f", modifiers: .command)
-                .help("Search projects (⌘F)")
-            Button("Projects", action: onProjects).buttonStyle(.wrapSecondary)
-            Button("New project", action: onNewProject).buttonStyle(.wrapSecondary)
-            Button("Quit") { NSApp.terminate(nil) }.buttonStyle(.wrapSecondary)
-            syncLabel
-            accountMenu
+
+            HStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    Image("WrapLogo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 22)
+                    Text("wrap")
+                        .font(.system(size: 18, weight: .semibold))
+                        .tracking(-0.4)
+                        .foregroundStyle(.white)
+                }
+                Spacer()
+                CircleIconButton(systemImage: "magnifyingglass", help: "Search projects (⌘F)", action: onSearch)
+                    .keyboardShortcut("f", modifiers: .command)
+                syncIndicator
+                Button("New project", action: onNewProject)
+                    .buttonStyle(NavPrimaryButtonStyle())
+                    .keyboardShortcut("n", modifiers: .command)
+                accountMenu
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 34)   // room for the window's close/minimise buttons
-        .padding(.bottom, 14)
+        .padding(.leading, 20)
+        .padding(.trailing, 10)
+        .frame(height: 60)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color.white.opacity(0.035))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.08))
+        )
+        .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
     }
 
-    /// A small "Synced" / "Syncing…" / "Sync failed" note next to your initial.
-    @ViewBuilder private var syncLabel: some View {
+    /// A small cloud: synced, syncing, or failed (hover for details).
+    @ViewBuilder private var syncIndicator: some View {
         switch SyncEngine.shared.status {
         case .idle:
             EmptyView()
         case .syncing:
-            Text("Syncing…")
-                .font(.system(size: 12))
+            ProgressView()
+                .controlSize(.small)
+                .frame(width: 20)
+                .help("Syncing…")
+        case .synced(let date):
+            Image(systemName: "checkmark.icloud")
+                .font(.system(size: 14))
                 .foregroundStyle(Color.wrapSecondary)
-        case .synced:
-            Label("Synced", systemImage: "checkmark.icloud")
-                .font(.system(size: 12))
-                .foregroundStyle(Color.wrapSecondary)
+                .frame(width: 20)
+                .help("Synced at \(date.formatted(date: .omitted, time: .shortened))")
         case .failed(let message):
-            Label("Sync failed", systemImage: "exclamationmark.icloud")
-                .font(.system(size: 12))
+            Image(systemName: "exclamationmark.icloud")
+                .font(.system(size: 14))
                 .foregroundStyle(.orange)
-                .help(message)
+                .frame(width: 20)
+                .help("Sync failed: \(message)")
         }
     }
 
-    /// A round initial; click for your email and Sign Out.
+    /// A round initial; click for your email, Sync Now and Sign Out.
     private var accountMenu: some View {
         Menu {
             if let account = auth.account {
@@ -212,11 +224,12 @@ struct TopBar: View {
             Text(initial)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 30, height: 30)
-                .background(Circle().fill(Color.white.opacity(0.1)))
-                .overlay(Circle().strokeBorder(Color.wrapBorder))
+                .frame(width: 36, height: 36)
+                .background(Circle().fill(Color.white.opacity(0.08)))
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.1)))
         }
-        .menuStyle(.borderlessButton)
+        .menuStyle(.button)
+        .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
     }
@@ -224,6 +237,77 @@ struct TopBar: View {
     private var initial: String {
         let source = auth.account.map { $0.name.isEmpty ? $0.email : $0.name } ?? "?"
         return source.first.map { String($0).uppercased() } ?? "?"
+    }
+}
+
+/// One section in the nav bar: grey text, white when selected or hovered,
+/// with a soft pill that slides between sections.
+struct NavTabButton: View {
+    let title: String
+    let isSelected: Bool
+    let namespace: Namespace.ID
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(isSelected || hovering ? Color.white : Color.white.opacity(0.5))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background {
+                    if isSelected {
+                        Capsule()
+                            .fill(Color.white.opacity(0.07))
+                            .matchedGeometryEffect(id: "selected", in: namespace)
+                    }
+                }
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
+    }
+}
+
+/// The big white button on the right of the nav bar.
+struct NavPrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 18)
+            .frame(height: 40)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(configuration.isPressed ? 0.8 : 1))
+            )
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+/// A round outlined icon button, e.g. Search.
+struct CircleIconButton: View {
+    let systemImage: String
+    let help: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(hovering ? Color.white : Color.white.opacity(0.7))
+                .frame(width: 36, height: 36)
+                .background(Circle().fill(Color.white.opacity(hovering ? 0.08 : 0.03)))
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.08)))
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .onHover { hovering = $0 }
     }
 }
 
