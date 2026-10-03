@@ -81,9 +81,8 @@ struct DeliveriesView: View {
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 4) {
-                Eyebrow("Deliveries")
                 Heading(active.isEmpty ? "Nothing waiting" : "\(active.count) link\(active.count == 1 ? "" : "s") out")
-                Text("Files delete themselves an hour after your client downloads them, or after \(AppSettings.expiryLabel(AppSettings.expiryHours)).")
+                Text("Links expire after \(AppSettings.expiryLabel(AppSettings.expiryHours)).")
                     .font(.system(size: 12))
                     .foregroundStyle(Color.wrapSecondary)
             }
@@ -98,9 +97,9 @@ struct DeliveriesView: View {
         VStack(spacing: 6) {
             Image(systemName: "arrow.up.doc")
                 .font(.system(size: 22))
-            Text("Drop a finished export here")
+            Text("Drop a file to send")
                 .font(.system(size: 13, weight: .medium))
-            Text("Up to \(ByteCountFormatter.string(fromByteCount: DeliveryService.shared.freeBytes, countStyle: .file)) right now, the space you have free. You'll get a link to send your client, with no account needed on their side.")
+            Text("\(ByteCountFormatter.string(fromByteCount: DeliveryService.shared.freeBytes, countStyle: .file)) free")
                 .font(.system(size: 12))
                 .foregroundStyle(Color.wrapSecondary)
         }

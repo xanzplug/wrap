@@ -136,9 +136,8 @@ struct Eyebrow: View {
     init(_ text: String) { self.text = text }
 
     var body: some View {
-        Text(text.uppercased())
-            .font(.system(size: 11, weight: .medium))
-            .tracking(1.2)
+        Text(text)
+            .font(.system(size: 12, weight: .medium))
             .foregroundStyle(Color.wrapSecondary)
     }
 }
@@ -195,21 +194,21 @@ struct CollapsibleHeader: View {
     @State private var hovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            Rectangle().fill(Color.wrapBorder).frame(height: 1)
+        VStack(alignment: .leading, spacing: 12) {
             Button {
                 withAnimation(.easeOut(duration: 0.2)) { isOpen.toggle() }
             } label: {
-                HStack(spacing: 14) {
+                HStack(spacing: 8) {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(hovering ? Color.white : Color.wrapSecondary)
                         .rotationEffect(.degrees(isOpen ? 0 : -90))
                     Text(title)
-                        .font(.system(size: 36, weight: .medium))
-                        .tracking(-1)
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(.white)
-                    CountBadge(count: count)
+                    Text("\(count)")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.wrapSecondary)
                 }
                 .contentShape(Rectangle())
                 .opacity(hovering ? 1 : 0.92)

@@ -38,13 +38,13 @@ struct SettingsView: View {
                         .labelsHidden()
                     }
                     divider
-                    row("Show in menu bar", detail: "The Wrap icon at the top of your screen, for launching workspaces.") {
+                    row("Show in menu bar", detail: "Quick access to workspaces.") {
                         Toggle("", isOn: $showMenuBarIcon)
                             .toggleStyle(.switch)
                             .labelsHidden()
                     }
                     divider
-                    row("Start page", detail: "What Wrap shows when it opens.") {
+                    row("Start page", detail: "") {
                         Picker("", selection: $startPage) {
                             Text("Dashboard").tag("dashboard")
                             Text("Projects").tag("projects")
@@ -56,7 +56,7 @@ struct SettingsView: View {
                 }
 
                 section("Account") {
-                    row("Your name", detail: "Shown in the greeting on your dashboard.") {
+                    row("Your name", detail: "") {
                         TextField("Name", text: $displayName)
                             .textFieldStyle(WrapFieldStyle())
                             .frame(width: 240)
@@ -89,7 +89,7 @@ struct SettingsView: View {
 
                 section("Delivery") {
                     row("Links expire after",
-                        detail: "Unopened links are deleted after this. Downloaded files are deleted an hour after download either way.") {
+                        detail: "Downloaded files are removed after an hour.") {
                         Picker("", selection: $expiryHours) {
                             ForEach(AppSettings.expiryChoices, id: \.self) { hours in
                                 Text(AppSettings.expiryLabel(hours)).tag(hours)
@@ -100,7 +100,7 @@ struct SettingsView: View {
                         .fixedSize()
                     }
                     divider
-                    row("Download alerts", detail: "A notification when your client downloads a file.") {
+                    row("Download alerts", detail: "") {
                         Toggle("", isOn: $downloadAlerts)
                             .toggleStyle(.switch)
                             .labelsHidden()
@@ -109,7 +109,7 @@ struct SettingsView: View {
 
                 section("Reminders") {
                     row("Shoot reminders",
-                        detail: "A notification the evening before each shoot at 6 PM, and 2 hours before it starts.") {
+                        detail: "6 PM the day before, and 2 hours before.") {
                         Toggle("", isOn: $remindersOn)
                             .toggleStyle(.switch)
                             .labelsHidden()
@@ -126,7 +126,7 @@ struct SettingsView: View {
                         .disabled(!updater.canCheck)
                     }
                     divider
-                    row("Check automatically", detail: "Looks for a new version once a day and lets you know.") {
+                    row("Check automatically", detail: "Once a day.") {
                         Toggle("", isOn: Binding(
                             get: { updater.checksAutomatically },
                             set: { updater.checksAutomatically = $0 }
@@ -163,10 +163,12 @@ struct SettingsView: View {
                 Text(title)
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.white)
-                Text(detail)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.wrapSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.wrapSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 16)
             control()

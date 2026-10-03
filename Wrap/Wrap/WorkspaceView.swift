@@ -95,7 +95,6 @@ struct WorkspaceView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Eyebrow("Workspace")
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 4) {
                     Heading(items.isEmpty ? "Nothing to open yet" : "\(items.count) item\(items.count == 1 ? "" : "s")")

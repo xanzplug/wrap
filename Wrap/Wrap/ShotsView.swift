@@ -125,13 +125,13 @@ struct ShotsView: View {
             Image(systemName: "camera")
                 .font(.system(size: 26))
                 .foregroundStyle(Color.wrapSecondary)
-            Text("Start your shot list")
+            Text("No shots yet")
                 .font(.system(size: 17, weight: .medium))
                 .foregroundStyle(.white)
             if templates.isEmpty {
-                HintText("Type your first shot in the box below.")
+                EmptyView()
             } else {
-                HintText("Start from a template, or type your first shot below.")
+                HintText("Start from a template")
                 HStack(spacing: 8) {
                     ForEach(templates.prefix(4)) { template in
                         Button(template.name) {
@@ -160,7 +160,6 @@ struct ShotsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Eyebrow("Shot list")
             HStack(alignment: .firstTextBaseline) {
                 Heading(shots.isEmpty ? "No shots yet" : "\(doneCount) of \(shots.count) shot")
                 Spacer()

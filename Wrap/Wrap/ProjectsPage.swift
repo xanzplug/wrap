@@ -41,14 +41,14 @@ struct ProjectsListView: View {
                 .padding(.bottom, 24)
 
                 if isSearching && found.isEmpty {
-                    HintText("Nothing matches “\(query)”. Search looks at project names, clients and shot names.")
+                    HintText("No results for “\(query)”.")
                         .padding(.bottom, 12)
                 }
 
                 CollapsibleHeader(title: "Active", count: active.count, isOpen: $showActive)
                 if showActive {
                     if active.isEmpty {
-                        HintText(isSearching ? "No active projects match." : "Nothing active. Create a project above.")
+                        HintText(isSearching ? "No matches." : "None.")
                     } else {
                         rows(active)
                     }
@@ -58,7 +58,7 @@ struct ProjectsListView: View {
                     .padding(.top, 24)
                 if showWrapped {
                     if wrapped.isEmpty {
-                        HintText(isSearching ? "No wrapped projects match." : "Finished projects land here when you mark them as wrapped.")
+                        HintText(isSearching ? "No matches." : "None.")
                     } else {
                         rows(wrapped)
                     }
@@ -181,7 +181,7 @@ struct ProjectPage: View {
     }
 
     private var subtitle: String {
-        var parts = [project.clientName.isEmpty ? "No client yet · add one in Overview" : project.clientName]
+        var parts = [project.clientName.isEmpty ? "No client" : project.clientName]
         if let shoot = project.upcomingShoot {
             parts.append("Shoot: \(ShootReminders.relativeDay(shoot)), \(shoot.formatted(date: .omitted, time: .shortened))")
         }
@@ -205,7 +205,6 @@ struct ShootDateEditor: View {
                 DatePicker("Date", selection: date, displayedComponents: .date)
                 DatePicker("Time", selection: date, displayedComponents: .hourAndMinute)
             }
-            HintText("Wrap reminds you the evening before at 6 PM, and 2 hours before it starts.")
         }
     }
 

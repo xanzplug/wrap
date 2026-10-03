@@ -8,59 +8,85 @@ struct DashboardView: View {
     var openProjectsPage: () -> Void = {}
 
     @AppStorage("displayName") private var displayName = WrapUser.defaultName
-    @State private var newName = ""
-    @State private var showProjects = true
-    @State private var showWorkspaces = true
     @State private var editingName = false
-    @State private var showLinks = true
-    @State private var showShoots = true
     @State private var scrollOffset: CGFloat = 0
 
     private var active: [Project] { projects.filter { !$0.isWrapped } }
     private var allShots: [Shot] { active.flatMap(\.shots) }
     private var doneShots: Int { allShots.filter(\.isDone).count }
     private var withWorkspace: [Project] { active.filter { !$0.workspaceItems.isEmpty } }
-    private var trimmedName: String { newName.trimmingCharacters(in: .whitespaces) }
-    private var statusLine: String {
-        let left = allShots.count - doneShots
-        let projectsPart = active.count == 1 ? "1 active project" : "\(active.count) active projects"
-        let shotsPart = left == 1 ? "1 shot to go" : "\(left) shots to go"
-        return active.isEmpty ? "No projects yet. Make one to get started." : "\(projectsPart) · \(shotsPart)"
-    }
     private var upcoming: [Project] {
         projects.filter { $0.upcomingShoot != nil }
             .sorted { $0.upcomingShoot! < $1.upcomingShoot! }
     }
+    private var linksStillOut: [Delivery] {
+        DeliveryService.shared.deliveries.filter(\.isActive)
+    }
+    private var usedBytes: Int64 {
+        linksStillOut.reduce(0) { $0 + $1.sizeBytes }
+    }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                greeting
-                    .padding(.top, 110)
-                    .padding(.bottom, 70)
-                HStack(alignment: .top, spacing: 64) {
-                    progress
-                    storage
+            VStack(alignment: .leading, spacing: 32) {
+                header
+                    .padding(.top, 28)
+                stats
+
+                if !upcoming.isEmpty {
+                    section("Upcoming shoots", count: upcoming.count) {
+                        VStack(spacing: 0) {
+                            ForEach(upcoming) { project in
+                                ShootRow(project: project) { open(project) }
+                            }
+                        }
+                    }
                 }
-                .padding(.top, 56)
-                upcomingShoots
-                    .padding(.top, 64)
-                HStack(alignment: .top, spacing: 64) {
-                    projectsColumn
-                    workspacesColumn
+
+                section("Projects", count: active.count, actionTitle: "View all", action: openProjectsPage) {
+                    if active.isEmpty {
+                        Text("No active projects.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Color.wrapSecondary)
+                    } else {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 14)], spacing: 14) {
+                            ForEach(active.prefix(9)) { project in
+                                ProjectCard(project: project) { open(project) }
+                            }
+                        }
+                    }
                 }
-                .padding(.top, 64)
-                linksOut
-                    .padding(.top, 64)
+
+                if !withWorkspace.isEmpty {
+                    section("Workspaces", count: withWorkspace.count) {
+                        VStack(spacing: 0) {
+                            ForEach(withWorkspace) { project in
+                                WorkspaceLaunchRow(project: project) { open(project) }
+                            }
+                        }
+                    }
+                }
+
+                if !linksStillOut.isEmpty {
+                    section("Links out", count: linksStillOut.count) {
+                        VStack(spacing: 0) {
+                            ForEach(linksStillOut) { delivery in
+                                LinkOutRow(delivery: delivery, project: project(for: delivery)) {
+                                    if let project = project(for: delivery) { open(project) }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             .frame(maxWidth: 1080, alignment: .leading)
-            .padding(.horizontal, 48)
-            .padding(.bottom, 56)
+            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
             .frame(maxWidth: .infinity)
         }
         .background(alignment: .top) {
             HeroGlow()
-                .opacity(glowOpacity)
+                .opacity(glowOpacity * 0.6)
                 .offset(y: -min(scrollOffset, 400) * 0.35)
                 .ignoresSafeArea(edges: .top)
         }
@@ -76,256 +102,247 @@ struct DashboardView: View {
         .alert("Your name", isPresented: $editingName) {
             TextField("Name", text: $displayName)
             Button("Done") {}
-        } message: {
-            Text("Shown in the greeting on your dashboard.")
         }
     }
 
-    // MARK: Sections
+    // MARK: Header
 
-    private var greeting: some View {
-        VStack(spacing: 22) {
-            VStack(spacing: 2) {
-                HStack(spacing: 14) {
-                    Text("Welcome back")
-                    Image("WrapLogo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 30, height: 30)
-                        .padding(10)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(Color.white.opacity(0.08))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(Color.white.opacity(0.12))
-                        )
-                    Text("\(displayName),")
-                }
-                .foregroundStyle(Color.white.opacity(0.62))
-                Text(heroLine)
+    private var header: some View {
+        HStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.wrapSecondary)
+                Text("\(greetingWord), \(displayName)")
+                    .font(.system(size: 28, weight: .semibold))
+                    .tracking(-0.6)
                     .foregroundStyle(.white)
             }
-            .font(.system(size: 52, weight: .bold))
-            .tracking(-2)
-            .multilineTextAlignment(.center)
             .contextMenu {
                 Button("Change Name…") { editingName = true }
             }
-
-            HStack(spacing: 10) {
-                Button {
-                    create("")
-                } label: {
-                    Label("New project", systemImage: "plus")
-                        .font(.system(size: 14, weight: .semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                }
-                .buttonStyle(.wrapPrimary)
-
-                Button {
-                    openProjectsPage()
-                } label: {
-                    Label("Projects", systemImage: "folder")
-                        .font(.system(size: 14, weight: .semibold))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                }
-                .buttonStyle(.wrapSecondary)
-            }
-
-            Text(statusLine)
-                .font(.system(size: 13))
-                .foregroundStyle(Color.wrapSecondary)
-        }
-        .frame(maxWidth: .infinity)
-        .overlay(alignment: .topTrailing) {
-            Menu {
-                Button("Change Name…") { editingName = true }
+            Spacer()
+            Button {
+                create("")
             } label: {
-                Image(systemName: "ellipsis")
-                    .foregroundStyle(Color.wrapSecondary)
-                    .frame(width: 30, height: 30)
-                    .contentShape(Rectangle())
+                Label("New project", systemImage: "plus")
             }
-            .menuStyle(.button)
-            .buttonStyle(.plain)
-            .fixedSize()
-            .offset(y: -60)
+            .buttonStyle(.wrapPrimary)
+        }
+    }
+
+    private var greetingWord: String {
+        switch Calendar.current.component(.hour, from: .now) {
+        case 5..<12: "Good morning"
+        case 12..<18: "Good afternoon"
+        default: "Good evening"
         }
     }
 
     private var glowOpacity: Double {
         let t = min(max(scrollOffset / 380, 0), 1)
-        let eased = t * t * (3 - 2 * t)
-        return 1 - eased
+        return 1 - t * t * (3 - 2 * t)
     }
 
-    private var heroLine: String {
-        if let next = upcoming.first, let date = next.upcomingShoot {
-            let day = ShootReminders.relativeDay(date)
-            switch day {
-            case "Today": return "you're shooting today."
-            case "Tomorrow": return "you're shooting tomorrow."
-            default:
-                return day.hasPrefix("In ") ? "next shoot \(day.lowercased())." : "next shoot \(day)."
-            }
+    // MARK: Stats
+
+    private var stats: some View {
+        HStack(spacing: 0) {
+            StatTile(label: "Shots",
+                     value: "\(doneShots)/\(allShots.count)",
+                     detail: allShots.isEmpty ? nil : "\(allShots.count - doneShots) to go",
+                     progress: allShots.isEmpty ? nil : Double(doneShots) / Double(allShots.count))
+            divider
+            StatTile(label: "Next shoot",
+                     value: upcoming.first?.upcomingShoot.map(ShootReminders.relativeDay) ?? "—",
+                     detail: upcoming.first?.displayName)
+            divider
+            StatTile(label: "Waiting for clients",
+                     value: ByteCountFormatter.string(fromByteCount: usedBytes, countStyle: .file),
+                     detail: "of \(ByteCountFormatter.string(fromByteCount: DeliveryConfig.maxActiveBytes, countStyle: .file))",
+                     progress: Double(usedBytes) / Double(DeliveryConfig.maxActiveBytes))
+            divider
+            StatTile(label: "Links out", value: "\(linksStillOut.count)",
+                     detail: "expire after \(AppSettings.expiryLabel(AppSettings.expiryHours))")
         }
-        return active.isEmpty ? "let's start something." : "let's wrap something."
+        .fixedSize(horizontal: false, vertical: true)
+        .wrapCard(padding: 0)
     }
 
-    private var progress: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Eyebrow("Shots on your lists")
+    private var divider: some View {
+        Rectangle().fill(Color.wrapBorder).frame(width: 1)
+    }
+
+    // MARK: Sections
+
+    private func section<Content: View>(
+        _ title: String, count: Int,
+        actionTitle: String? = nil, action: (() -> Void)? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("\(doneShots)")
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(.white)
-                Text("/ \(allShots.count) done")
+                Text("\(count)")
+                    .font(.system(size: 13))
                     .foregroundStyle(Color.wrapSecondary)
-            }
-            .font(.system(size: 32, weight: .medium))
-            .monospacedDigit()
-
-            ThinProgressBar(value: allShots.isEmpty ? 0 : Double(doneShots) / Double(allShots.count))
-
-            HintText("Across your active projects. Tick shots off on set, and this fills up.")
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: Deliveries
-
-    private var linksStillOut: [Delivery] {
-        DeliveryService.shared.deliveries.filter(\.isActive)
-    }
-
-    private var usedBytes: Int64 {
-        linksStillOut.reduce(0) { $0 + $1.sizeBytes }
-    }
-
-    private var storage: some View {
-        let used = usedBytes
-        let limit = DeliveryConfig.maxActiveBytes
-        return VStack(alignment: .leading, spacing: 16) {
-            Eyebrow("Waiting for clients")
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(ByteCountFormatter.string(fromByteCount: used, countStyle: .file))
-                    .foregroundStyle(.white)
-                Text("/ \(ByteCountFormatter.string(fromByteCount: limit, countStyle: .file))")
-                    .foregroundStyle(Color.wrapSecondary)
-            }
-            .font(.system(size: 32, weight: .medium))
-            .monospacedDigit()
-
-            ThinProgressBar(value: Double(used) / Double(limit))
-
-            HintText("Files your clients haven't downloaded yet. Once they do, this frees up. Links expire after \(AppSettings.expiryLabel(AppSettings.expiryHours)).")
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var linksOut: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            CollapsibleHeader(title: "Links out", count: linksStillOut.count, isOpen: $showLinks)
-
-            if showLinks {
-                if linksStillOut.isEmpty {
-                    HintText("No links out. Open a project's Deliveries tab and drop in a finished file to get a link for your client.")
-                } else {
-                    VStack(spacing: 0) {
-                        ForEach(linksStillOut) { delivery in
-                            LinkOutRow(delivery: delivery, project: project(for: delivery)) {
-                                if let project = project(for: delivery) { open(project) }
-                            }
-                        }
-                    }
+                Spacer()
+                if let actionTitle, let action {
+                    TextLinkButton(title: actionTitle, action: action)
                 }
             }
+            content()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: Shoots
-
-    private var upcomingShoots: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            CollapsibleHeader(title: "Upcoming shoots", count: upcoming.count, isOpen: $showShoots)
-
-            if showShoots {
-                if upcoming.isEmpty {
-                    HintText("No shoots scheduled. Open a project and press Set shoot date. Wrap reminds you the evening before and 2 hours before.")
-                } else {
-                    VStack(spacing: 0) {
-                        ForEach(upcoming) { project in
-                            ShootRow(project: project) { open(project) }
-                        }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func project(for delivery: Delivery) -> Project? {
         projects.first { $0.remoteID.uuidString.lowercased() == delivery.projectID }
     }
+}
 
-    private var projectsColumn: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            CollapsibleHeader(title: "Projects", count: active.count, isOpen: $showProjects)
+struct StatTile: View {
+    let label: String
+    let value: String
+    var detail: String? = nil
+    var progress: Double? = nil
 
-            if showProjects {
-                Eyebrow("New project")
-                HStack(spacing: 10) {
-                    TextField("Client or project name", text: $newName)
-                        .textFieldStyle(WrapFieldStyle())
-                        .onSubmit(submit)
-                    Button("Create project", action: submit)
-                        .buttonStyle(.wrapSecondary)
-                        .disabled(trimmedName.isEmpty)
-                }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(Color.wrapSecondary)
+            Text(value)
+                .font(.system(size: 20, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .lineLimit(1)
+            if let progress {
+                ThinProgressBar(value: progress)
+                    .padding(.top, 2)
+            }
+            if let detail {
+                Text(detail)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.wrapSecondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(16)
+    }
+}
 
-                if active.isEmpty {
-                    HintText("No projects yet. Make one per shoot or client, like “Acme” or “Wedding film”, then add your shots.")
-                } else {
-                    Eyebrow("Active")
-                        .padding(.top, 8)
-                    VStack(spacing: 0) {
-                        ForEach(active) { project in
-                            ProjectRow(project: project) { open(project) }
+struct TextLinkButton: View {
+    let title: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(hovering ? Color.white : Color.wrapSecondary)
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+    }
+}
+
+struct ProjectCard: View {
+    let project: Project
+    let action: () -> Void
+    @State private var hovering = false
+
+    private var shots: [Shot] { project.sortedShots }
+    private var done: Int { shots.filter(\.isDone).count }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 0) {
+                thumbnails
+                    .frame(height: 104)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(project.displayName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Spacer(minLength: 4)
+                        if let shoot = project.upcomingShoot {
+                            Text(ShootReminders.relativeDay(shoot))
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(Color.wrapAccent)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.wrapAccent.opacity(0.14)))
                         }
                     }
+                    Text(project.clientName.isEmpty ? "No client" : project.clientName)
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.wrapSecondary)
+                        .lineLimit(1)
+
+                    HStack(spacing: 8) {
+                        if shots.isEmpty {
+                            Text("No shots")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Color.wrapSecondary)
+                        } else {
+                            ThinProgressBar(value: Double(done) / Double(shots.count))
+                            Text("\(done)/\(shots.count)")
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundStyle(Color.wrapSecondary)
+                        }
+                    }
+                    .frame(height: 14)
+                    .padding(.top, 4)
+                }
+                .padding(12)
+            }
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.wrapCard))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(hovering ? Color.wrapAccent.opacity(0.45) : Color.wrapBorder)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.15), value: hovering)
+    }
+
+    @ViewBuilder private var thumbnails: some View {
+        let images = Array(shots.compactMap(\.referenceImage).prefix(3).compactMap { NSImage(data: $0) })
+        if images.isEmpty {
+            ZStack {
+                LinearGradient(colors: [Color.white.opacity(0.06), Color.white.opacity(0.02)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                Text(initials)
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.22))
+            }
+        } else {
+            HStack(spacing: 2) {
+                ForEach(Array(images.enumerated()), id: \.offset) { _, image in
+                    Image(nsImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                        .clipped()
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var workspacesColumn: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            CollapsibleHeader(title: "Workspaces", count: withWorkspace.count, isOpen: $showWorkspaces)
-
-            if showWorkspaces {
-                if withWorkspace.isEmpty {
-                    HintText("No workspaces yet. Open a project and add the apps, files and folders you use for it. Then launch it from here in one click.")
-                } else {
-                    VStack(spacing: 0) {
-                        ForEach(withWorkspace) { project in
-                            WorkspaceLaunchRow(project: project) { open(project) }
-                        }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func submit() {
-        guard !trimmedName.isEmpty else { return }
-        create(trimmedName)
-        newName = ""
+    private var initials: String {
+        let words = project.displayName.split(separator: " ").prefix(2)
+        return words.compactMap(\.first).map { String($0).uppercased() }.joined()
     }
 }
 
