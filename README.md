@@ -1,6 +1,6 @@
 # Wrap — Creator Project Hub for Mac
 
-> **Status:** In production
+> **Status:** App Available Soon
 
 **Wrap** is a Mac app for managing a creative project from start to finish. You can plan your shots, set up your editing workspace, and send the finished file to a client without having to jump between a bunch of different apps.
 
@@ -60,5 +60,4 @@ For the first version, the plan is to try a **small NFS server running inside th
 
 The reason for doing it this way is that the disk is what makes Wrap different from just being another file-upload app.
 
-Wrap,
-The future.
+Wrap, the future.
