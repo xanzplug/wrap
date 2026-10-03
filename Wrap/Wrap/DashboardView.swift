@@ -284,7 +284,7 @@ struct ProjectRow: View {
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 12)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(hovering ? 0.05 : 0)))
+            .rowHover(hovering)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -339,7 +339,7 @@ struct ShootRow: View {
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 12)
-            .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(hovering ? 0.05 : 0)))
+            .rowHover(hovering)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -384,7 +384,7 @@ struct WorkspaceLaunchRow: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(hovering ? 0.05 : 0)))
+        .rowHover(hovering)
         .onHover { hovering = $0 }
     }
 
@@ -440,7 +440,7 @@ struct LinkOutRow: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(hovering ? 0.05 : 0)))
+        .rowHover(hovering)
         .onHover { hovering = $0 }
     }
 

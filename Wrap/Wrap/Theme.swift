@@ -14,33 +14,73 @@ extension Color {
 }
 
 /// White pill with black text, for the main action on a screen.
+/// Glows softly when the pointer is over it.
 struct WrapPrimaryButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(.black)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 7)
-            .background(Capsule().fill(Color.white))
-            .opacity(isEnabled ? (configuration.isPressed ? 0.8 : 1) : 0.35)
+        PrimaryPill(configuration: configuration)
+    }
+
+    private struct PrimaryPill: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+        @State private var hovering = false
+
+        var body: some View {
+            configuration.label
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.black)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(Color.white))
+                .shadow(color: .white.opacity(hovering && isEnabled ? 0.28 : 0), radius: 8)
+                .scaleEffect(configuration.isPressed ? 0.97 : 1)
+                .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.35)
+                .onHover { hovering = $0 }
+                .animation(.easeOut(duration: 0.15), value: hovering)
+                .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        }
     }
 }
 
 /// Dark pill with a thin outline, for everything else.
+/// The outline turns white when the pointer is over it.
 struct WrapSecondaryButtonStyle: ButtonStyle {
-    @Environment(\.isEnabled) private var isEnabled
-
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
-            .background(Capsule().fill(Color.white.opacity(configuration.isPressed ? 0.1 : 0.03)))
-            .overlay(Capsule().strokeBorder(Color.wrapBorder))
-            .opacity(isEnabled ? 1 : 0.35)
+        SecondaryPill(configuration: configuration)
+    }
+
+    private struct SecondaryPill: View {
+        let configuration: Configuration
+        @Environment(\.isEnabled) private var isEnabled
+        @State private var hovering = false
+
+        private var lit: Bool { hovering && isEnabled }
+
+        var body: some View {
+            configuration.label
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(Capsule().fill(Color.white.opacity(
+                    configuration.isPressed ? 0.12 : (lit ? 0.07 : 0.03))))
+                .overlay(Capsule().strokeBorder(lit ? Color.white.opacity(0.55) : Color.wrapBorder))
+                .scaleEffect(configuration.isPressed ? 0.97 : 1)
+                .opacity(isEnabled ? 1 : 0.35)
+                .onHover { hovering = $0 }
+                .animation(.easeOut(duration: 0.15), value: hovering)
+                .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        }
+    }
+}
+
+extension View {
+    /// The hover look for list rows: a soft fill and a faint white outline.
+    func rowHover(_ hovering: Bool, cornerRadius: CGFloat = 8) -> some View {
+        self
+            .background(RoundedRectangle(cornerRadius: cornerRadius).fill(Color.white.opacity(hovering ? 0.05 : 0)))
+            .overlay(RoundedRectangle(cornerRadius: cornerRadius).strokeBorder(Color.white.opacity(hovering ? 0.14 : 0)))
+            .animation(.easeOut(duration: 0.15), value: hovering)
     }
 }
 
@@ -126,6 +166,7 @@ struct CollapsibleHeader: View {
     let title: String
     let count: Int
     @Binding var isOpen: Bool
+    @State private var hovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
@@ -136,7 +177,7 @@ struct CollapsibleHeader: View {
                 HStack(spacing: 14) {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(Color.wrapSecondary)
+                        .foregroundStyle(hovering ? Color.white : Color.wrapSecondary)
                         .rotationEffect(.degrees(isOpen ? 0 : -90))
                     Text(title)
                         .font(.system(size: 36, weight: .medium))
@@ -145,8 +186,11 @@ struct CollapsibleHeader: View {
                     CountBadge(count: count)
                 }
                 .contentShape(Rectangle())
+                .opacity(hovering ? 1 : 0.92)
             }
             .buttonStyle(.plain)
+            .onHover { hovering = $0 }
+            .animation(.easeOut(duration: 0.15), value: hovering)
         }
     }
 }
