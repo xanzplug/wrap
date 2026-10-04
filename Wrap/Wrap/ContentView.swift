@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var route: Route = .dashboard
     @State private var searchRequest = false
     @State private var navProgress: CGFloat = 0
+    @State private var pendingDelete: Project?
     @AppStorage(ShootReminders.enabledKey) private var remindersOn = true
 
     var body: some View {
@@ -58,6 +59,31 @@ struct ContentView: View {
                 }
             }
         .background(Color.wrapBackground)
+        .overlay {
+            ZStack {
+                if pendingDelete != nil {
+                    Color.black.opacity(0.55)
+                        .background(.ultraThinMaterial.opacity(0.4))
+                        .ignoresSafeArea()
+                        .onTapGesture { closeDeletePopup() }
+                        .transition(.opacity)
+                }
+                if let project = pendingDelete {
+                    DeleteProjectPopup(
+                        project: project,
+                        cancel: closeDeletePopup,
+                        confirm: {
+                            closeDeletePopup()
+                            Task {
+                                try? await Task.sleep(for: .milliseconds(220))
+                                delete(project)
+                            }
+                        }
+                    )
+                    .transition(.scale(scale: 0.92).combined(with: .opacity).combined(with: .offset(y: 12)))
+                }
+            }
+        }
         .frame(minWidth: 900, minHeight: 640)
         .onAppear {
             if UserDefaults.standard.string(forKey: AppSettings.startPage) == "projects" {
@@ -87,11 +113,11 @@ struct ContentView: View {
         case .settings:
             SettingsView()
         case .projects:
-            ProjectsListView(projects: projects, open: open, create: createProject, delete: delete,
+            ProjectsListView(projects: projects, open: open, create: createProject, delete: askDelete,
                              searchRequest: $searchRequest)
         case .project(let id):
             if let project = projects.first(where: { $0.persistentModelID == id }) {
-                ProjectPage(project: project, back: { route = .dashboard }, delete: { delete(project) })
+                ProjectPage(project: project, back: { route = .dashboard }, delete: { askDelete(project) })
             } else {
                 DashboardView(projects: projects, open: open, create: createProject)
             }
@@ -118,6 +144,18 @@ struct ContentView: View {
         context.insert(project)
         try? context.save()
         open(project)
+    }
+
+    private func askDelete(_ project: Project) {
+        withAnimation(.spring(duration: 0.35, bounce: 0.22)) {
+            pendingDelete = project
+        }
+    }
+
+    private func closeDeletePopup() {
+        withAnimation(.easeOut(duration: 0.18)) {
+            pendingDelete = nil
+        }
     }
 
     private func delete(_ project: Project) {

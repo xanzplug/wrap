@@ -122,7 +122,6 @@ struct ProjectPage: View {
     @Bindable var project: Project
     let back: () -> Void
     let delete: () -> Void
-    @State private var confirmingDelete = false
     @State private var pickingShootDate = false
 
     var body: some View {
@@ -164,7 +163,7 @@ struct ProjectPage: View {
                     project.isWrapped.toggle()
                 }
                 .buttonStyle(.wrapSecondary)
-                Button("Delete") { confirmingDelete = true }
+                Button("Delete", action: delete)
                     .buttonStyle(.wrapSecondary)
             }
             .padding(.horizontal, 32)
@@ -172,11 +171,6 @@ struct ProjectPage: View {
             .padding(.bottom, 16)
 
             ProjectDetailView(project: project)
-        }
-        .confirmationDialog("Delete \(project.displayName)?", isPresented: $confirmingDelete) {
-            Button("Delete Project", role: .destructive, action: delete)
-        } message: {
-            Text("Its shots and workspace list are deleted too. Your files stay where they are.")
         }
     }
 
