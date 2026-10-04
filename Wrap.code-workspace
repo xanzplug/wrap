@@ -1,0 +1,74 @@
+{
+  "folders": [
+    { "path": "." }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.DS_Store": true,
+      "**/xcuserdata": true,
+      "**/*.xcuserstate": true,
+      "build": true,
+      ".release-keys": true
+    },
+    "search.exclude": {
+      "build": true,
+      "updates/*.zip": true,
+      "**/node_modules": true
+    },
+    "files.watcherExclude": {
+      "**/build/**": true
+    },
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "[javascript]": { "editor.tabSize": 2 },
+    "[json]": { "editor.tabSize": 2 }
+  },
+  "extensions": {
+    "recommendations": [
+      "swiftlang.swift-vscode"
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Run Wrap",
+        "type": "shell",
+        "command": "pkill -x Wrap; xcodebuild -project Wrap/Wrap.xcodeproj -scheme Wrap -configuration Debug -derivedDataPath build -quiet && open build/Build/Products/Debug/Wrap.app",
+        "group": { "kind": "build", "isDefault": true },
+        "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+        "problemMatcher": {
+          "owner": "swift",
+          "fileLocation": "absolute",
+          "pattern": {
+            "regexp": "^(.*?):(\\d+):(\\d+):\\s+(error|warning):\\s+(.*)$",
+            "file": 1, "line": 2, "column": 3, "severity": 4, "message": 5
+          }
+        }
+      },
+      {
+        "label": "Build Wrap",
+        "type": "shell",
+        "command": "xcodebuild -project Wrap/Wrap.xcodeproj -scheme Wrap -configuration Debug -derivedDataPath build -quiet",
+        "group": "build",
+        "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+        "problemMatcher": {
+          "owner": "swift",
+          "fileLocation": "absolute",
+          "pattern": {
+            "regexp": "^(.*?):(\\d+):(\\d+):\\s+(error|warning):\\s+(.*)$",
+            "file": 1, "line": 2, "column": 3, "severity": 4, "message": 5
+          }
+        }
+      },
+      {
+        "label": "Open in Xcode",
+        "type": "shell",
+        "command": "open Wrap/Wrap.xcodeproj",
+        "problemMatcher": []
+      }
+    ]
+  }
+}
