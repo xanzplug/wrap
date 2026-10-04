@@ -115,7 +115,7 @@ struct ContentView: View {
 
     private func createProject(named name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
-        let project = Project(name: trimmed.isEmpty ? "Untitled Project" : trimmed)
+        let project = Project(name: trimmed)
         context.insert(project)
         try? context.save()
         open(project)

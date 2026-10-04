@@ -52,6 +52,7 @@ struct DashboardView: View {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 14)], spacing: 14) {
                             ForEach(active.prefix(9)) { project in
                                 ProjectCard(project: project) { open(project) }
+                                    .projectMenu(project)
                             }
                         }
                     }
@@ -122,12 +123,6 @@ struct DashboardView: View {
                 Button("Change Name…") { editingName = true }
             }
             Spacer()
-            Button {
-                create("")
-            } label: {
-                Label("New project", systemImage: "plus")
-            }
-            .buttonStyle(.wrapPrimary)
         }
     }
 

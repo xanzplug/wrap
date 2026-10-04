@@ -106,13 +106,7 @@ struct ProjectsListView: View {
         VStack(spacing: 0) {
             ForEach(list) { project in
                 ProjectRow(project: project) { open(project) }
-                    .contextMenu {
-                        Button(project.isWrapped ? "Move to Active" : "Mark as Wrapped") {
-                            project.isWrapped.toggle()
-                        }
-                        Divider()
-                        Button("Delete", role: .destructive) { delete(project) }
-                    }
+                    .projectMenu(project, delete: { delete(project) })
             }
         }
     }
@@ -142,13 +136,19 @@ struct ProjectPage: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Color.wrapSecondary)
 
-                    Text(project.displayName)
-                        .font(.system(size: 34, weight: .medium))
-                        .tracking(-1)
-                        .foregroundStyle(.white)
-                    Text(subtitle)
-                        .font(.system(size: 13))
-                        .foregroundStyle(Color.wrapSecondary)
+                    InlineTextField(text: $project.name, placeholder: "Untitled Project",
+                                    font: .system(size: 30, weight: .semibold), color: .white,
+                                    autoFocus: project.name.trimmingCharacters(in: .whitespaces).isEmpty)
+                    HStack(spacing: 6) {
+                        InlineTextField(text: $project.clientName, placeholder: "Add client",
+                                        font: .system(size: 13), color: Color.wrapSecondary)
+                            .fixedSize()
+                        if let shoot = project.upcomingShoot {
+                            Text("· Shoot \(ShootReminders.relativeDay(shoot)), \(shoot.formatted(date: .omitted, time: .shortened))")
+                                .font(.system(size: 13))
+                                .foregroundStyle(Color.wrapSecondary)
+                        }
+                    }
                 }
                 Spacer()
                 Button(shootButtonTitle, systemImage: "calendar") {
@@ -178,14 +178,6 @@ struct ProjectPage: View {
         } message: {
             Text("Its shots and workspace list are deleted too. Your files stay where they are.")
         }
-    }
-
-    private var subtitle: String {
-        var parts = [project.clientName.isEmpty ? "No client" : project.clientName]
-        if let shoot = project.upcomingShoot {
-            parts.append("Shoot: \(ShootReminders.relativeDay(shoot)), \(shoot.formatted(date: .omitted, time: .shortened))")
-        }
-        return parts.joined(separator: " · ")
     }
 
     private var shootButtonTitle: String {
@@ -231,5 +223,79 @@ struct ShootDateEditor: View {
     static func wholeMinute(_ date: Date) -> Date {
         let parts = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: date)
         return Calendar.current.date(from: parts) ?? date
+    }
+}
+
+struct InlineTextField: View {
+    @Binding var text: String
+    let placeholder: String
+    let font: Font
+    let color: Color
+    var autoFocus = false
+    @State private var hovering = false
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(placeholder, text: $text)
+            .textFieldStyle(.plain)
+            .font(font)
+            .foregroundStyle(color)
+            .focused($focused)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.white.opacity(focused ? 0.06 : (hovering ? 0.04 : 0)))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .strokeBorder(focused ? Color.wrapAccent.opacity(0.5) : Color.clear)
+            )
+            .padding(.horizontal, -6)
+            .onHover { hovering = $0 }
+            .onSubmit { focused = false }
+            .help("Click to edit")
+            .task {
+                guard autoFocus else { return }
+                try? await Task.sleep(for: .milliseconds(150))
+                focused = true
+            }
+    }
+}
+
+extension View {
+    func projectMenu(_ project: Project, delete: (() -> Void)? = nil) -> some View {
+        modifier(ProjectMenu(project: project, delete: delete))
+    }
+}
+
+private struct ProjectMenu: ViewModifier {
+    @Bindable var project: Project
+    let delete: (() -> Void)?
+    @State private var renaming = false
+    @State private var draft = ""
+
+    func body(content: Content) -> some View {
+        content
+            .contextMenu {
+                Button("Rename…") {
+                    draft = project.name
+                    renaming = true
+                }
+                Button(project.isWrapped ? "Move to Active" : "Mark as Wrapped") {
+                    project.isWrapped.toggle()
+                }
+                if let delete {
+                    Divider()
+                    Button("Delete", role: .destructive, action: delete)
+                }
+            }
+            .alert("Rename project", isPresented: $renaming) {
+                TextField("Name", text: $draft)
+                Button("Rename") {
+                    project.name = draft.trimmingCharacters(in: .whitespaces)
+                }
+                Button("Cancel", role: .cancel) {}
+            }
     }
 }
