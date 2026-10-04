@@ -43,20 +43,20 @@
 
   <!-- Hero -->
   <section class="hero">
-    <p class="pill"><span class="dot"></span><span class="version-label">Version 1.4</span> is out</p>
-    <h1>Plan it. Shoot it.<br><span class="muted">Wrap it.</span></h1>
-    <p class="lede">Shot lists, your editing setup and client download links live together in one project. A free Mac app for photographers, video editors and filmmakers.</p>
-    <div class="cta">
+    <p class="pill intro" style="--i:0"><span class="dot"></span><span class="version-label">Version 1.4</span> is out</p>
+    <h1><span class="word" style="--i:1">Plan it.</span> <span class="word" style="--i:2">Shoot it.</span><br><span class="word muted" style="--i:3">Wrap it.</span></h1>
+    <p class="lede intro" style="--i:4">Shot lists, your editing setup and client download links live together in one project. A free Mac app for photographers, video editors and filmmakers.</p>
+    <div class="cta intro" style="--i:5">
       <a class="btn btn-primary btn-lg download-link" href="https://raw.githubusercontent.com/xanzplug/wrap/main/updates/Wrap-1.4.zip">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14"/></svg>
         Download for Mac
       </a>
       <a class="btn btn-ghost btn-lg" href="#plan">See how it works</a>
     </div>
-    <p class="fine">Free · macOS 26 or later · Apple silicon and Intel</p>
+    <p class="fine intro" style="--i:6">Free · macOS 26 or later · Apple silicon and Intel</p>
 
     <!-- App window -->
-    <div class="window-stage">
+    <div class="window-stage intro" style="--i:6">
       <div class="window" role="img" aria-label="The Wrap dashboard showing upcoming shoots, project cards, workspaces and links">
         <div class="titlebar"><i></i><i></i><i></i></div>
         <div class="app-nav">
@@ -130,12 +130,12 @@
           <li>Reminders the evening before and two hours before a shoot</li>
         </ul>
       </div>
-      <div class="panel">
+      <div class="panel" id="planDemo">
         <div class="panel-head">
-          <b>3 of 7 shots</b>
-          <span class="mono">43%</span>
+          <b><span class="shot-count">3</span> of 7 shots</b>
+          <span class="mono shot-pct">43%</span>
         </div>
-        <div class="progress"><div style="width:43%"></div></div>
+        <div class="progress"><div class="shot-bar" style="width:43%"></div></div>
         <ul class="shots">
           <li class="done"><i class="cb"></i><span class="ref r1"></span>Wide — rooftop at dusk</li>
           <li class="done"><i class="cb"></i><span class="ref r2"></span>Close-up — hands on guitar</li>
@@ -161,10 +161,10 @@
           <li>Hide it all again in one click when you're done</li>
         </ul>
       </div>
-      <div class="panel">
+      <div class="panel" id="editDemo">
         <div class="panel-head">
           <b>Workspace</b>
-          <span class="btn-mini">▶ Launch Workspace</span>
+          <span class="btn-mini launch">▶ Launch Workspace</span>
         </div>
         <ul class="ws">
           <li><span class="ico i-blue"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5"/><path d="M3.5 9h17M8 5v4M16 5v4"/></svg></span><div><b>harbor-lights.prproj</b><span>Opens in Premiere Pro</span></div><em>File</em></li>
@@ -187,13 +187,14 @@
           <li>Big files upload in parts and retry if the connection drops</li>
         </ul>
       </div>
-      <div class="panel deliver">
+      <div class="panel deliver" id="deliverDemo">
         <div class="dl-page">
           <p class="dl-brand">wrap</p>
           <p class="eyebrow">Neon Tide sent you a file</p>
           <p class="dl-name">harbor-lights-final.mp4</p>
           <p class="mono dim">742 MB · expires in 2 days</p>
-          <span class="btn btn-primary btn-sm">Download</span>
+          <span class="btn btn-primary btn-sm dl-btn">Download</span>
+          <div class="dl-progress"><div></div></div>
         </div>
         <div class="toast">
           <img src="/assets/app-icon.png" alt="" width="30" height="30">
