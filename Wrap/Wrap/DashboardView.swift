@@ -267,7 +267,7 @@ struct ProjectCard: View {
     }
 
     @ViewBuilder private var thumbnails: some View {
-        let images = Array(shots.compactMap(\.referenceImage).prefix(3).compactMap { NSImage(data: $0) })
+        let images = Array(shots.filter { $0.referenceImage != nil }.prefix(3).compactMap { Thumbnails.image(for: $0, size: 300) })
         if images.isEmpty {
             ZStack {
                 LinearGradient(colors: [Color.white.opacity(0.06), Color.white.opacity(0.02)],

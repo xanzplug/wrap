@@ -13,28 +13,27 @@ struct HeroGlow: View {
         GeometryReader { geo in
             let w = geo.size.width
             ZStack {
-                Ellipse()
-                    .fill(Color.white.opacity(0.14))
-                    .frame(width: w * 0.55, height: 320)
-                    .offset(x: -w * 0.05, y: -30)
-                Ellipse()
-                    .fill(Color.white.opacity(0.22))
-                    .frame(width: w * 0.45, height: 180)
-                    .offset(x: w * 0.3, y: 140)
-                Ellipse()
-                    .fill(Color.wrapAccent.opacity(0.25))
-                    .frame(width: w * 0.45, height: 260)
-                    .offset(x: w * 0.2, y: 0)
+                glow(Color.white.opacity(0.16), width: w * 0.8, height: 560)
+                    .offset(x: -w * 0.05, y: -60)
+                glow(Color.white.opacity(0.20), width: w * 0.65, height: 380)
+                    .offset(x: w * 0.3, y: 120)
+                glow(Color.wrapAccent.opacity(0.34), width: w * 0.7, height: 480)
+                    .offset(x: w * 0.2, y: -20)
             }
             .frame(width: w, height: geo.size.height)
-            .blur(radius: 90)
         }
         .frame(height: 520)
         .mask(
             LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .bottom)
         )
-        .drawingGroup()
         .allowsHitTesting(false)
+    }
+
+    private func glow(_ color: Color, width: CGFloat, height: CGFloat) -> some View {
+        Ellipse()
+            .fill(EllipticalGradient(colors: [color, color.opacity(0)], center: .center,
+                                     startRadiusFraction: 0, endRadiusFraction: 0.5))
+            .frame(width: width, height: height)
     }
 }
 

@@ -13,7 +13,7 @@ struct ContentView: View {
     @Query(sort: \Project.createdAt, order: .reverse) private var projects: [Project]
     @State private var route: Route = .dashboard
     @State private var searchRequest = false
-    @State private var navProgress: CGFloat = 0
+    @State private var nav = NavState()
     @State private var pendingDelete: Project?
     @AppStorage(ShootReminders.enabledKey) private var remindersOn = true
 
@@ -21,14 +21,14 @@ struct ContentView: View {
         page
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .environment(\.setNavProgress) { progress in
-                guard progress != navProgress else { return }
+                guard progress != nav.progress else { return }
                 withAnimation(.smooth(duration: 0.25)) {
-                    navProgress = progress
+                    nav.progress = progress
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
                 TopBar(
-                    progress: navProgress,
+                    nav: nav,
                     selected: selectedTab,
                     select: { tab in
                         withAnimation(.easeOut(duration: 0.18)) {
@@ -183,9 +183,14 @@ enum NavTab: String, CaseIterable, Identifiable {
     }
 }
 
+@Observable final class NavState {
+    var progress: CGFloat = 0
+}
+
 struct TopBar: View {
     @Environment(AuthService.self) private var auth
-    let progress: CGFloat
+    let nav: NavState
+    private var progress: CGFloat { nav.progress }
     let selected: NavTab
     let select: (NavTab) -> Void
     let onSearch: () -> Void

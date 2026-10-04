@@ -220,7 +220,7 @@ struct ShotRow: View {
                 .toggleStyle(.checkbox)
                 .labelsHidden()
 
-            if let data = shot.referenceImage, let image = NSImage(data: data) {
+            if let image = Thumbnails.image(for: shot, size: 28) {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFill()
