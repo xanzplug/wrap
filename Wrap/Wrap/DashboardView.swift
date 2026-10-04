@@ -9,7 +9,7 @@ struct DashboardView: View {
 
     @AppStorage("displayName") private var displayName = WrapUser.defaultName
     @State private var editingName = false
-    @State private var scrollOffset: CGFloat = 0
+    @State private var glowStep = 0
 
     private var active: [Project] { projects.filter { !$0.isWrapped } }
     private var allShots: [Shot] { active.flatMap(\.shots) }
@@ -31,7 +31,6 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 32) {
                 header
                     .padding(.top, 28)
-                stats
 
                 if !upcoming.isEmpty {
                     section("Upcoming shoots", count: upcoming.count) {
@@ -49,7 +48,7 @@ struct DashboardView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(Color.wrapSecondary)
                     } else {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 14)], spacing: 14) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12)], spacing: 12) {
                             ForEach(active.prefix(9)) { project in
                                 ProjectCard(project: project) { open(project) }
                                     .projectMenu(project)
@@ -87,14 +86,15 @@ struct DashboardView: View {
         }
         .background(alignment: .top) {
             HeroGlow()
-                .opacity(glowOpacity * 0.6)
-                .offset(y: -min(scrollOffset, 400) * 0.35)
+                .opacity(0.6 * (1 - Double(glowStep) / 10))
+                .animation(.easeOut(duration: 0.3), value: glowStep)
                 .ignoresSafeArea(edges: .top)
         }
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            max(0, geometry.contentOffset.y + geometry.contentInsets.top)
-        } action: { _, offset in
-            scrollOffset = offset
+        .onScrollGeometryChange(for: Int.self) { geometry in
+            let offset = max(0, geometry.contentOffset.y + geometry.contentInsets.top)
+            return min(10, Int(offset / 35))
+        } action: { _, step in
+            glowStep = step
         }
         .reportsScrollForNav()
         .task {
@@ -118,6 +118,10 @@ struct DashboardView: View {
                     .font(.system(size: 28, weight: .semibold))
                     .tracking(-0.6)
                     .foregroundStyle(.white)
+                Text(summary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Color.wrapSecondary)
+                    .padding(.top, 2)
             }
             .contextMenu {
                 Button("Change Name…") { editingName = true }
@@ -134,38 +138,20 @@ struct DashboardView: View {
         }
     }
 
-    private var glowOpacity: Double {
-        let t = min(max(scrollOffset / 380, 0), 1)
-        return 1 - t * t * (3 - 2 * t)
-    }
-
-    // MARK: Stats
-
-    private var stats: some View {
-        HStack(spacing: 0) {
-            StatTile(label: "Shots",
-                     value: "\(doneShots)/\(allShots.count)",
-                     detail: allShots.isEmpty ? nil : "\(allShots.count - doneShots) to go",
-                     progress: allShots.isEmpty ? nil : Double(doneShots) / Double(allShots.count))
-            divider
-            StatTile(label: "Next shoot",
-                     value: upcoming.first?.upcomingShoot.map(ShootReminders.relativeDay) ?? "—",
-                     detail: upcoming.first?.displayName)
-            divider
-            StatTile(label: "Waiting for clients",
-                     value: ByteCountFormatter.string(fromByteCount: usedBytes, countStyle: .file),
-                     detail: "of \(ByteCountFormatter.string(fromByteCount: DeliveryConfig.maxActiveBytes, countStyle: .file))",
-                     progress: Double(usedBytes) / Double(DeliveryConfig.maxActiveBytes))
-            divider
-            StatTile(label: "Links out", value: "\(linksStillOut.count)",
-                     detail: "expire after \(AppSettings.expiryLabel(AppSettings.expiryHours))")
+    private var summary: String {
+        var parts: [String] = []
+        let left = allShots.count - doneShots
+        parts.append(left == 1 ? "1 shot to go" : "\(left) shots to go")
+        if let next = upcoming.first?.upcomingShoot {
+            let day = ShootReminders.relativeDay(next)
+            let when = ["Today", "Tomorrow"].contains(day) || day.hasPrefix("In ") ? day.lowercased() : "on \(day)"
+            parts.append("next shoot \(when)")
         }
-        .fixedSize(horizontal: false, vertical: true)
-        .wrapCard(padding: 0)
-    }
-
-    private var divider: some View {
-        Rectangle().fill(Color.wrapBorder).frame(width: 1)
+        if !linksStillOut.isEmpty {
+            let size = ByteCountFormatter.string(fromByteCount: usedBytes, countStyle: .file)
+            parts.append("\(linksStillOut.count) link\(linksStillOut.count == 1 ? "" : "s") out (\(size))")
+        }
+        return parts.joined(separator: " · ")
     }
 
     // MARK: Sections
@@ -197,38 +183,6 @@ struct DashboardView: View {
     }
 }
 
-struct StatTile: View {
-    let label: String
-    let value: String
-    var detail: String? = nil
-    var progress: Double? = nil
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label)
-                .font(.system(size: 12))
-                .foregroundStyle(Color.wrapSecondary)
-            Text(value)
-                .font(.system(size: 20, weight: .semibold))
-                .monospacedDigit()
-                .foregroundStyle(.white)
-                .lineLimit(1)
-            if let progress {
-                ThinProgressBar(value: progress)
-                    .padding(.top, 2)
-            }
-            if let detail {
-                Text(detail)
-                    .font(.system(size: 12))
-                    .foregroundStyle(Color.wrapSecondary)
-                    .lineLimit(1)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .padding(16)
-    }
-}
-
 struct TextLinkButton: View {
     let title: String
     let action: () -> Void
@@ -257,7 +211,7 @@ struct ProjectCard: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
                 thumbnails
-                    .frame(height: 104)
+                    .frame(height: 64)
                     .frame(maxWidth: .infinity)
                     .clipped()
 
@@ -319,7 +273,7 @@ struct ProjectCard: View {
                 LinearGradient(colors: [Color.white.opacity(0.06), Color.white.opacity(0.02)],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
                 Text(initials)
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.22))
             }
         } else {

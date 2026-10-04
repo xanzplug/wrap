@@ -9,42 +9,32 @@ extension Color {
 }
 
 struct HeroGlow: View {
-    @State private var drift = false
-
     var body: some View {
         GeometryReader { geo in
             let w = geo.size.width
             ZStack {
                 Ellipse()
+                    .fill(Color.white.opacity(0.14))
+                    .frame(width: w * 0.55, height: 320)
+                    .offset(x: -w * 0.05, y: -30)
+                Ellipse()
                     .fill(Color.white.opacity(0.22))
-                    .frame(width: w * 0.55, height: 360)
-                    .offset(x: drift ? -w * 0.08 : -w * 0.02, y: drift ? -40 : -10)
+                    .frame(width: w * 0.45, height: 180)
+                    .offset(x: w * 0.3, y: 140)
                 Ellipse()
-                    .fill(Color.white.opacity(0.42))
-                    .frame(width: w * 0.5, height: 200)
-                    .offset(x: drift ? w * 0.34 : w * 0.28, y: drift ? 150 : 175)
-                Ellipse()
-                    .fill(Color.wrapAccent.opacity(0.34))
-                    .frame(width: w * 0.45, height: 300)
-                    .offset(x: drift ? w * 0.18 : w * 0.24, y: drift ? -20 : 30)
-                Ellipse()
-                    .fill(Color.wrapAccent.opacity(0.14))
-                    .frame(width: w * 0.4, height: 260)
-                    .offset(x: drift ? -w * 0.3 : -w * 0.36, y: drift ? 190 : 160)
+                    .fill(Color.wrapAccent.opacity(0.25))
+                    .frame(width: w * 0.45, height: 260)
+                    .offset(x: w * 0.2, y: 0)
             }
             .frame(width: w, height: geo.size.height)
             .blur(radius: 90)
         }
-        .frame(height: 620)
+        .frame(height: 520)
         .mask(
-            LinearGradient(colors: [.white, .white, .clear], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: .bottom)
         )
+        .drawingGroup()
         .allowsHitTesting(false)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 14).repeatForever(autoreverses: true)) {
-                drift = true
-            }
-        }
     }
 }
 
@@ -273,7 +263,7 @@ private struct ReportsScrollForNav: ViewModifier {
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
                 let offset = geometry.contentOffset.y + geometry.contentInsets.top
                 let progress = min(max(offset / shrinkDistance, 0), 1)
-                return (progress * 200).rounded() / 200
+                return (progress * 24).rounded() / 24
             } action: { _, progress in
                 setNavProgress(progress)
             }

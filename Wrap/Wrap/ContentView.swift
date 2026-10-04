@@ -21,8 +21,7 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .environment(\.setNavProgress) { progress in
                 guard progress != navProgress else { return }
-                let jump = abs(progress - navProgress)
-                withAnimation(.smooth(duration: jump > 0.3 ? 0.4 : 0.22)) {
+                withAnimation(.smooth(duration: 0.25)) {
                     navProgress = progress
                 }
             }
