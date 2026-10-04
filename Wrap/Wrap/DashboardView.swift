@@ -28,9 +28,9 @@ struct DashboardView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 32) {
+            VStack(alignment: .leading, spacing: 44) {
                 header
-                    .padding(.top, 28)
+                    .padding(.top, 36)
 
                 if !upcoming.isEmpty {
                     section("Upcoming shoots", count: upcoming.count) {
@@ -48,7 +48,7 @@ struct DashboardView: View {
                             .font(.system(size: 13))
                             .foregroundStyle(Color.wrapSecondary)
                     } else {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), spacing: 12)], spacing: 12) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 16)], spacing: 16) {
                             ForEach(active.prefix(9)) { project in
                                 ProjectCard(project: project) { open(project) }
                                     .projectMenu(project)
@@ -79,8 +79,8 @@ struct DashboardView: View {
                     }
                 }
             }
-            .frame(maxWidth: 1080, alignment: .leading)
-            .padding(.horizontal, 40)
+            .frame(maxWidth: 1440, alignment: .leading)
+            .padding(.horizontal, 56)
             .padding(.bottom, 40)
             .frame(maxWidth: .infinity)
         }
@@ -112,16 +112,16 @@ struct DashboardView: View {
         HStack(alignment: .bottom) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide)))
-                    .font(.system(size: 13))
+                    .font(.system(size: 15))
                     .foregroundStyle(Color.wrapSecondary)
                 Text("\(greetingWord), \(displayName)")
-                    .font(.system(size: 28, weight: .semibold))
-                    .tracking(-0.6)
+                    .font(.system(size: 38, weight: .semibold))
+                    .tracking(-0.9)
                     .foregroundStyle(.white)
                 Text(summary)
-                    .font(.system(size: 13))
+                    .font(.system(size: 15))
                     .foregroundStyle(Color.wrapSecondary)
-                    .padding(.top, 2)
+                    .padding(.top, 4)
             }
             .contextMenu {
                 Button("Change Name…") { editingName = true }
@@ -161,13 +161,13 @@ struct DashboardView: View {
         actionTitle: String? = nil, action: (() -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
                 Text("\(count)")
-                    .font(.system(size: 13))
+                    .font(.system(size: 15))
                     .foregroundStyle(Color.wrapSecondary)
                 Spacer()
                 if let actionTitle, let action {
@@ -191,7 +191,7 @@ struct TextLinkButton: View {
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(hovering ? Color.white : Color.wrapSecondary)
         }
         .buttonStyle(.plain)
@@ -211,20 +211,20 @@ struct ProjectCard: View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
                 thumbnails
-                    .frame(height: 64)
+                    .frame(height: 120)
                     .frame(maxWidth: .infinity)
                     .clipped()
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 6) {
                         Text(project.displayName)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.white)
                             .lineLimit(1)
                         Spacer(minLength: 4)
                         if let shoot = project.upcomingShoot {
                             Text(ShootReminders.relativeDay(shoot))
-                                .font(.system(size: 11, weight: .medium))
+                                .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(Color.wrapAccent)
                                 .padding(.horizontal, 7)
                                 .padding(.vertical, 2)
@@ -232,7 +232,7 @@ struct ProjectCard: View {
                         }
                     }
                     Text(project.clientName.isEmpty ? "No client" : project.clientName)
-                        .font(.system(size: 12))
+                        .font(.system(size: 13))
                         .foregroundStyle(Color.wrapSecondary)
                         .lineLimit(1)
 
@@ -244,19 +244,19 @@ struct ProjectCard: View {
                         } else {
                             ThinProgressBar(value: Double(done) / Double(shots.count))
                             Text("\(done)/\(shots.count)")
-                                .font(.system(size: 11, design: .monospaced))
+                                .font(.system(size: 12, design: .monospaced))
                                 .foregroundStyle(Color.wrapSecondary)
                         }
                     }
-                    .frame(height: 14)
-                    .padding(.top, 4)
+                    .frame(height: 16)
+                    .padding(.top, 6)
                 }
-                .padding(12)
+                .padding(14)
             }
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.wrapCard))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .background(RoundedRectangle(cornerRadius: 14).fill(Color.wrapCard))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 14)
                     .strokeBorder(hovering ? Color.wrapAccent.opacity(0.45) : Color.wrapBorder)
             )
             .contentShape(RoundedRectangle(cornerRadius: 12))
@@ -273,7 +273,7 @@ struct ProjectCard: View {
                 LinearGradient(colors: [Color.white.opacity(0.06), Color.white.opacity(0.02)],
                                startPoint: .topLeading, endPoint: .bottomTrailing)
                 Text(initials)
-                    .font(.system(size: 18, weight: .semibold))
+                    .font(.system(size: 28, weight: .semibold))
                     .foregroundStyle(Color.white.opacity(0.22))
             }
         } else {
@@ -305,11 +305,11 @@ struct ProjectRow: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(project.displayName)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white)
                     if !project.clientName.isEmpty {
                         Text(project.clientName)
-                            .font(.system(size: 12))
+                            .font(.system(size: 13))
                             .foregroundStyle(Color.wrapSecondary)
                     }
                 }
@@ -321,8 +321,8 @@ struct ProjectRow: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Color.wrapSecondary)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 12)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 14)
             .rowHover(hovering)
             .contentShape(Rectangle())
         }
@@ -349,7 +349,7 @@ struct ShootRow: View {
                 if let shoot = project.upcomingShoot {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(ShootReminders.relativeDay(shoot))
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(.white)
                         Text(shoot.formatted(date: .omitted, time: .shortened))
                             .font(.system(size: 12, design: .monospaced))
@@ -359,11 +359,11 @@ struct ShootRow: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(project.displayName)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white)
                     if !project.clientName.isEmpty {
                         Text(project.clientName)
-                            .font(.system(size: 12))
+                            .font(.system(size: 13))
                             .foregroundStyle(Color.wrapSecondary)
                     }
                 }
@@ -375,8 +375,8 @@ struct ShootRow: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Color.wrapSecondary)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 12)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 14)
             .rowHover(hovering)
             .contentShape(Rectangle())
         }
@@ -402,7 +402,7 @@ struct WorkspaceLaunchRow: View {
             Button(action: open) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(project.displayName)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white)
                     Text(itemSummary)
                         .font(.system(size: 12))
@@ -419,8 +419,8 @@ struct WorkspaceLaunchRow: View {
             }
             .buttonStyle(.wrapPrimary)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
         .rowHover(hovering)
         .onHover { hovering = $0 }
     }
@@ -448,7 +448,7 @@ struct LinkOutRow: View {
             Button(action: openProject) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(delivery.fileName)
-                        .font(.system(size: 14, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.white)
                         .lineLimit(1)
                     Text(project?.displayName ?? "No project")
@@ -474,8 +474,8 @@ struct LinkOutRow: View {
             }
             .buttonStyle(.wrapSecondary)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 12)
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
         .rowHover(hovering)
         .onHover { hovering = $0 }
     }
