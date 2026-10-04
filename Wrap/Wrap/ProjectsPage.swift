@@ -128,12 +128,8 @@ struct ProjectPage: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .bottom, spacing: 10) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Button(action: back) {
-                        Label("Dashboard", systemImage: "chevron.left")
-                    }
-                    .buttonStyle(.plain)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(Color.wrapSecondary)
+                    BackButton(action: back)
+                        .padding(.bottom, 4)
 
                     InlineTextField(text: $project.name, placeholder: "Untitled Project",
                                     font: .system(size: 30, weight: .semibold), color: .white,
@@ -291,5 +287,33 @@ private struct ProjectMenu: ViewModifier {
                 }
                 Button("Cancel", role: .cancel) {}
             }
+    }
+}
+
+struct BackButton: View {
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Go Back")
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .foregroundStyle(hovering ? .white : Color.white.opacity(0.75))
+            .padding(.leading, 12)
+            .padding(.trailing, 16)
+            .frame(height: 32)
+            .background(Capsule().fill(Color.white.opacity(hovering ? 0.09 : 0.05)))
+            .overlay(Capsule().strokeBorder(hovering ? Color.wrapAccent.opacity(0.6) : Color.white.opacity(0.1)))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut("[", modifiers: .command)
+        .help("Go back (⌘[)")
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
     }
 }

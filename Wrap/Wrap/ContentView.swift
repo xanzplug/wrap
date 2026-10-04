@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var searchRequest = false
     @State private var nav = NavState()
     @State private var pendingDelete: Project?
+    @State private var backRoute: Route = .dashboard
     @AppStorage(ShootReminders.enabledKey) private var remindersOn = true
 
     var body: some View {
@@ -117,7 +118,7 @@ struct ContentView: View {
                              searchRequest: $searchRequest)
         case .project(let id):
             if let project = projects.first(where: { $0.persistentModelID == id }) {
-                ProjectPage(project: project, back: { route = .dashboard }, delete: { askDelete(project) })
+                ProjectPage(project: project, back: { withAnimation(.easeOut(duration: 0.18)) { route = backRoute } }, delete: { askDelete(project) })
             } else {
                 DashboardView(projects: projects, open: open, create: createProject)
             }
@@ -135,6 +136,7 @@ struct ContentView: View {
     // MARK: Actions
 
     private func open(_ project: Project) {
+        if case .project = route {} else { backRoute = route }
         route = .project(project.persistentModelID)
     }
 
