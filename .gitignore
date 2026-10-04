@@ -24,3 +24,6 @@ node_modules/
 
 # Update signing key (never commit)
 .release-keys/
+
+# Xcode exports
+Wrap 20*/
