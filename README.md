@@ -35,7 +35,7 @@ Also: syncing between your Macs, search, a menu bar launcher and in-app updates.
 
 ## Screenshots
 
-<img src="https://github.com/user-attachments/assets/581eb56b-332f-4d2c-af9e-d8b4916e2802" width="100%" alt="The Wrap dashboard">
+<img src="https://github.com/user-attachments/assets/215032d2-ecf3-48c6-9f4d-43eb33856ba0" width="100%" alt="The Wrap dashboard with upcoming shoots and projects">
 
 <img src="https://github.com/user-attachments/assets/a395a6e1-13a7-4366-ba31-5bc5a274d28c" width="100%" alt="A finished shot list in Wrap">
 
