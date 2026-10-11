@@ -1,63 +1,54 @@
-# Wrap — Creator Project Hub for Mac
+<p align="center">
+  <img src="docs/logo/logo-flat.png" width="96" alt="Wrap logo">
+</p>
 
-> **Status:** App Available Soon
+<h1 align="center">Wrap</h1>
 
-**Wrap** is a Mac app for managing a creative project from start to finish. You can plan your shots, set up your editing workspace, and send the finished file to a client without having to jump between a bunch of different apps.
+<p align="center">
+  A free Mac app for photographers, video editors and filmmakers.<br>
+  Plan the shoot, set up your edit, and send the final file to your client, all from one project.
+</p>
 
-The main idea is to bring three things together: shot planning, workspace setup, and file delivery.
+<p align="center">
+  <a href="https://getwrap.pages.dev"><b>Download for Mac</b></a> ·
+  <a href="https://getwrap.pages.dev">Website</a> ·
+  macOS 26+ · v1.4
+</p>
 
-**Who it's for:** photographers, video editors, filmmakers, and motion designers working on personal or client projects.
+<p align="center">
+  <img src="site/assets/og.png" width="100%" alt="Wrap: plan it, shoot it, wrap it">
+</p>
 
-## The three parts of a project
+## Why I made it
 
-| Stage   | In-App Features              | What you can do                                                                                                           |
-| ------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Plan    | Shotlist                     | Make a shot list with reference images, outfits, locations, and notes. Check shots off as you finish them.                |
-| Edit    | Dockly, adapted for creators | Open your editor, project file, footage folder, music, and other apps together and put their windows where you want them. |
-| Deliver | Export-to-link               | Export to the Wrap disk or drop a finished file into the project and get a client link.                                   |
+I wanted one place for a whole project instead of jumping between a bunch of different apps: one for the shot list, one for setting up my edit, and another for sending the file. Something like Dropbox only cares about the final file. Wrap keeps the project around it too, so the shots, the workspace and the delivery stay connected.
 
-The main difference is that something like Dropbox is mostly focused on sending the final file. Wrap keeps the project around that file too, so the shots, workspace, and delivery are all connected.
+## What it does
 
-For version 1, Wrap won't have an iPhone app, team accounts, payments, or a Windows version. Everything is free.
+| Stage | What you can do |
+| ----- | --------------- |
+| **Plan** | Make a shot list with reference images, outfits, locations and notes. Save shot lists as templates and get a reminder before a shoot. Check shots off while you're shooting. |
+| **Edit** | Add your editor, project file, footage folder, music and websites to a project's workspace. Arrange the windows once, then **Launch Workspace** opens everything where you left it, from the app or the menu bar. |
+| **Deliver** | Drop the finished file into the project and get a download link that expires. Big files upload in pieces and pick back up if your connection drops. You get a notification when the client downloads it. |
 
-## How a project works
+Also: syncing between your Macs, search, a menu bar launcher and in-app updates.
 
-A project can go from planning to editing to delivery, all in Wrap.
+## How it's built
 
-### Plan
+- **App:** SwiftUI, with projects, shots and workspace layouts stored locally in SwiftData.
+- **Workspace launcher:** `NSWorkspace` opens apps, files and folders. Moving and resizing other apps' windows needs Accessibility permission, which you grant once in System Settings.
+- **Accounts and sync:** Supabase handles sign-in and keeps your library in sync between Macs.
+- **Delivery:** a small Cloudflare Worker (`worker/`) creates the upload and download links. Files are stored in Supabase Storage and cleaned up automatically after they expire.
+- **Updates:** Sparkle, with the update feed in `updates/`.
 
-1. Create a new project, give it a name, and optionally add the client's name and email.
-2. Add the shots you need, such as Football Field, Parking Lot, Stairwell, Close-up, Full Body, or Low Angle. You can add reference pictures, outfit photos, locations, and notes to each one.
-3. When you're shooting, open the shot list and check things off as you get them.
+## Run it yourself
 
-### Edit
+1. Clone the repo and open `Wrap/Wrap.xcodeproj` in Xcode (macOS 26 SDK).
+2. Set your own Supabase project in `SupabaseConfig.swift`, and run `supabase/schema.sql` and `supabase/deliveries.sql` in it.
+3. To test delivery, deploy the worker from `worker/` with `npx wrangler deploy` and put its URL in `DeliveryConfig.swift`.
+4. Build and run.
 
-4. Go to the project's Workspace tab and add whatever you normally use. For example, Premiere Pro with the project's `.prproj` file, your footage folder, Spotify, or a client email.
-5. Arrange the windows how you want them and save the layout.
-6. After that, pressing **Launch Workspace** opens everything again. You can launch it from Wrap or the menu bar. **Close Workspace** hides everything when you're finished.
+## What's next
 
-### Deliver
-
-7. Export your finished video to the **Wrap** disk, or just drop the file into the project.
-8. Wrap uploads the file while the export is happening. Once the upload finishes, the share link is copied and the delivery gets added to the project.
-9. The client opens the link in their browser and downloads the file. You'll get a notification when they do, and the file can then be deleted automatically. Once everything is done, you can mark the project as **Wrapped**.
-
-## Architecture
-
-The planning and workspace parts stay completely on the Mac. The cloud is only used when a file actually needs to be delivered.
-
-![Architecture: 7 parts on the Mac, 4 in the cloud](docs/architecture.png)
-
-* **Project library:** SwiftData stores projects, shots, notes, workspace layouts, and delivery history locally. Reference images are copied into Wrap's own folder, so deleting or moving the original image won't break the project. iCloud syncing can be added later if an iPhone version is made.
-* **Workspace launcher:** `NSWorkspace` handles opening apps, files, and folders. Wrap needs Accessibility permission to move and resize windows belonging to other apps. The user only has to grant this once in System Settings.
-* **Delivery:** When a file is being uploaded, Wrap asks the API for signed upload URLs and sends the file parts directly to R2. Large files don't have to go through our server first. Once a delivery link is created, it gets saved to the project.
-
-## The virtual disk
-
-The virtual disk is probably the hardest part of Wrap.
-
-For the first version, the plan is to try a **small NFS server running inside the app** and have macOS mount it like a normal network drive. Once the rest of the product is working, this could be replaced with **FSKit**.
-
-The reason for doing it this way is that the disk is what makes Wrap different from just being another file-upload app.
-
-Wrap, the future.
+- A **Wrap disk**: export straight from your editor to a drive in Finder and have the upload start while it's still exporting. That's the part that would make Wrap more than another upload app, and it's the hardest one to build.
+- No iPhone app, team accounts or Windows version for now. Wrap is free.
