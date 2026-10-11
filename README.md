@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <img src="site/assets/og.png" width="100%" alt="Wrap: plan it, shoot it, wrap it">
+  <img src="https://github.com/user-attachments/assets/08116be8-ac8a-4253-9fdd-528b75117d6b" width="100%" alt="Wrap dashboard with upcoming shoots and projects">
 </p>
 
 ## Why I made it
@@ -32,6 +32,12 @@ I wanted one place for a whole project instead of jumping between a bunch of dif
 | **Deliver** | Drop the finished file into the project and get a download link that expires. Big files upload in pieces and pick back up if your connection drops. You get a notification when the client downloads it. |
 
 Also: syncing between your Macs, search, a menu bar launcher and in-app updates.
+
+## Screenshots
+
+<img src="https://github.com/user-attachments/assets/581eb56b-332f-4d2c-af9e-d8b4916e2802" width="100%" alt="The Wrap dashboard">
+
+<img src="https://github.com/user-attachments/assets/a395a6e1-13a7-4366-ba31-5bc5a274d28c" width="100%" alt="A finished shot list in Wrap">
 
 ## How it's built
 
