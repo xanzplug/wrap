@@ -161,7 +161,7 @@ struct ThinProgressBar: View {
     }
 }
 
-// MARK: - Dashboard pieces
+// MARK: Dashboard pieces
 
 struct CountBadge: View {
     let count: Int
@@ -240,7 +240,7 @@ enum WrapUser {
     }
 }
 
-// MARK: - Nav bar that shrinks on scroll
+// MARK: Nav bar that shrinks on scroll
 
 extension EnvironmentValues {
     @Entry var setNavProgress: (CGFloat) -> Void = { _ in }
