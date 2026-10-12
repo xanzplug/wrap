@@ -41,7 +41,7 @@ export default {
   },
 };
 
-// ---------- App API ----------
+// App API
 
 async function createDelivery(request, env, user, url) {
   const fileName = cleanFileName(decodeURIComponent(request.headers.get("X-File-Name") || "file"));
@@ -207,7 +207,7 @@ async function cancelDelivery(id, env, user) {
   return json({ ok: true });
 }
 
-// ---------- Client download ----------
+// Client download
 
 async function downloadPage(token, env) {
   const row = await deliveryByToken(token, env);
@@ -325,7 +325,7 @@ function availableUntil(row) {
   return Math.min(expires, Date.parse(row.downloaded_at) + GRACE_MINUTES_AFTER_DOWNLOAD * 60e3);
 }
 
-// ---------- Cleanup (runs every hour) ----------
+// Cleanup (runs every hour)
 
 async function cleanup(env) {
   const now = new Date().toISOString();
@@ -355,7 +355,7 @@ async function removeFile(row, env) {
   }
 }
 
-// ---------- Supabase ----------
+// Supabase
 
 async function authenticate(request, env) {
   const auth = request.headers.get("Authorization") || "";
@@ -395,7 +395,7 @@ async function deliveryByToken(token, env) {
   return rows[0] || null;
 }
 
-// ---------- Helpers ----------
+// Helpers
 
 function randomToken() {
   const bytes = crypto.getRandomValues(new Uint8Array(18));
